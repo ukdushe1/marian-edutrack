@@ -1,0 +1,87 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── helpers ───────────────────────────────────────────────────────────
+    function isSignedIn()       { return request.auth != null; }
+    function uid()              { return request.auth.uid; }
+    function claims()           { return request.auth.token; }
+    function hasRole(r)         { return r in (claims().roles ?? []); }
+    function isStaff()          { return isSignedIn() && (hasRole('teacher') || hasRole('tutor') || hasRole('hod') || hasRole('head') || hasRole('examsOfficer') || hasRole('superAdmin')); }
+    function isAdmin()          { return isSignedIn() && hasRole('superAdmin'); }
+    function isHead()           { return isSignedIn() && (hasRole('head') || hasRole('superAdmin')); }
+    function isHOD()            { return isSignedIn() && (hasRole('hod') || hasRole('head') || hasRole('superAdmin')); }
+
+    // ── users ─────────────────────────────────────────────────────────────
+    match /users/{userId} {
+      allow read:  if isSignedIn() && (uid() == userId || isAdmin());
+      allow write: if isAdmin();
+    }
+
+    // ── syllabi (read-all staff, write admin) ─────────────────────────────
+    match /syllabi/{id}         { allow read: if isStaff(); allow write: if isAdmin(); }
+    match /gradeBoundaries/{id} { allow read: if isStaff(); allow write: if isAdmin(); }
+    match /gradingScales/{id}   { allow read: if isStaff(); allow write: if isAdmin(); }
+
+    // ── school structure ──────────────────────────────────────────────────
+    match /classes/{id}  { allow read: if isStaff(); allow write: if isAdmin(); }
+    match /students/{id} { allow read: if isStaff(); allow write: if isAdmin() || isHOD(); }
+    match /terms/{id}    { allow read: if isStaff(); allow write: if isAdmin(); }
+
+    // ── teaching groups ───────────────────────────────────────────────────
+    match /teachingGroups/{groupId} {
+      allow read: if isStaff();
+      allow write: if isAdmin();
+
+      // Assessments: teacher in the group or HOD/admin
+      match /assessments/{aId} {
+        allow read: if isStaff();
+        allow write: if isStaff() &&
+          (resource == null || isHOD() || uid() in get(/databases/$(database)/documents/teachingGroups/$(groupId)).data.teacherIds);
+
+        // Marks: same teacher + HOD/admin; HOD can lock (locked field)
+        match /marks/{mId} {
+          allow read: if isStaff();
+          allow write: if isStaff() &&
+            (!('locked' in request.resource.data) || isHOD()) &&
+            (isHOD() || uid() in get(/databases/$(database)/documents/teachingGroups/$(groupId)).data.teacherIds);
+        }
+      }
+    }
+
+    // ── registers ─────────────────────────────────────────────────────────
+    match /registers/{id} {
+      allow read:  if isStaff();
+      allow write: if isStaff();
+    }
+
+    // ── reports ───────────────────────────────────────────────────────────
+    match /reports/{id} {
+      allow read: if isStaff() || (isSignedIn() && hasRole('parent') &&
+        resource.data.status == 'published' && resource.data.guardianIds.hasAny([uid()]));
+      allow write: if isStaff();
+      // Only head can set status = 'published'
+      allow update: if resource.data.status != 'published' || isHead();
+    }
+
+    // ── conduct ───────────────────────────────────────────────────────────
+    match /conduct/{id} {
+      allow read:  if isStaff();
+      allow create: if isStaff();
+      allow update: if isAdmin();
+    }
+
+    // ── audit log — append-only ───────────────────────────────────────────
+    match /auditLog/{id} {
+      allow read:   if isAdmin();
+      allow create: if isStaff();
+      allow update, delete: if false;
+    }
+
+    // ── bookings ──────────────────────────────────────────────────────────
+    match /bookings/{id} {
+      allow read:  if isStaff();
+      allow write: if isStaff();
+    }
+  }
+}
