@@ -14,8 +14,17 @@ import DataToolsPage    from './pages/admin/DataToolsPage';
 import AnalysisPage     from './pages/analysis/AnalysisPage';
 import ConductPage      from './pages/conduct/ConductPage';
 import NoticeBoardPage  from './pages/notices/NoticeBoardPage';
-import SyllabiPage      from './pages/admin/SyllabiPage';
-import GroupsPage       from './pages/admin/GroupsPage';
+import SyllabiPage         from './pages/admin/SyllabiPage';
+import GroupsPage          from './pages/admin/GroupsPage';
+import ExamTimetablePage   from './pages/exams/ExamTimetablePage';
+import CambridgeEntriesPage from './pages/exams/CambridgeEntriesPage';
+import CoverReliefPage     from './pages/cover/CoverReliefPage';
+import SchemesPage         from './pages/schemes/SchemesPage';
+import BookingsPage        from './pages/bookings/BookingsPage';
+import PredictionsPage     from './pages/predictions/PredictionsPage';
+import HodMarksPage        from './pages/hod/HodMarksPage';
+import HeadApprovalsPage   from './pages/head/HeadApprovalsPage';
+import BoardingPage        from './pages/boarding/BoardingPage';
 
 function RequireAuth({ children }) {
   const { firebaseUser, loading } = useAuth();
@@ -66,11 +75,18 @@ export default function App() {
               <Route path="notices"        element={<NoticeBoardPage />} />
               <Route path="admin/syllabi"  element={<SyllabiPage />} />
               <Route path="admin/groups"   element={<GroupsPage />} />
-              <Route path="hod/marks"      element={<Placeholder title="Department marks" phase={2} />} />
-              <Route path="hod/schemes"    element={<Placeholder title="Schemes of work" phase={3} />} />
-              <Route path="head/approve"   element={<Placeholder title="Approvals" phase={2} />} />
-              <Route path="head/analytics" element={<Placeholder title="Analytics" phase={2} />} />
-              <Route path="exams/*"        element={<Placeholder title="Exams" phase={3} />} />
+              <Route path="hod/marks"           element={<HodMarksPage />} />
+              <Route path="hod/schemes"         element={<SchemesPage />} />
+              <Route path="head/approve"        element={<HeadApprovalsPage />} />
+              <Route path="head/analytics"      element={<Placeholder title="Analytics" phase={2} />} />
+              <Route path="exams/timetable"     element={<ExamTimetablePage />} />
+              <Route path="exams/entries"       element={<CambridgeEntriesPage />} />
+              <Route path="exams/seating"       element={<Placeholder title="Seating plans" phase={3} />} />
+              <Route path="exams/boundaries"    element={<Placeholder title="Grade boundaries" phase={3} />} />
+              <Route path="cover"               element={<CoverReliefPage />} />
+              <Route path="bookings"            element={<BookingsPage />} />
+              <Route path="predictions"         element={<PredictionsPage />} />
+              <Route path="boarding"            element={<BoardingPage />} />
               <Route path="*"              element={<Navigate to="/" replace />} />
             </Route>
           </Routes>
