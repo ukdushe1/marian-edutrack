@@ -3,14 +3,19 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 
-import AppShell       from './components/layout/AppShell';
-import Login          from './pages/auth/Login';
-import Dashboard      from './pages/Dashboard';
-import MarkbookPage   from './pages/markbook/MarkbookPage';
-import RegisterPage   from './pages/register/RegisterPage';
-import ReportsPage    from './pages/reports/ReportsPage';
-import AIToolsPage    from './pages/ai/AIToolsPage';
-import DataToolsPage  from './pages/admin/DataToolsPage';
+import AppShell         from './components/layout/AppShell';
+import Login            from './pages/auth/Login';
+import Dashboard        from './pages/Dashboard';
+import MarkbookPage     from './pages/markbook/MarkbookPage';
+import RegisterPage     from './pages/register/RegisterPage';
+import ReportsPage      from './pages/reports/ReportsPage';
+import AIToolsPage      from './pages/ai/AIToolsPage';
+import DataToolsPage    from './pages/admin/DataToolsPage';
+import AnalysisPage     from './pages/analysis/AnalysisPage';
+import ConductPage      from './pages/conduct/ConductPage';
+import NoticeBoardPage  from './pages/notices/NoticeBoardPage';
+import SyllabiPage      from './pages/admin/SyllabiPage';
+import GroupsPage       from './pages/admin/GroupsPage';
 
 function RequireAuth({ children }) {
   const { firebaseUser, loading } = useAuth();
@@ -56,15 +61,16 @@ export default function App() {
               <Route path="ai"       element={<AIToolsPage />} />
               <Route path="admin/imports" element={<DataToolsPage />} />
               {/* Phase 2–4 routes registered but not yet implemented */}
-              <Route path="analysis"       element={<Placeholder title="Topic analysis" phase={2} />} />
+              <Route path="analysis"       element={<AnalysisPage />} />
+              <Route path="conduct"        element={<ConductPage />} />
+              <Route path="notices"        element={<NoticeBoardPage />} />
+              <Route path="admin/syllabi"  element={<SyllabiPage />} />
+              <Route path="admin/groups"   element={<GroupsPage />} />
               <Route path="hod/marks"      element={<Placeholder title="Department marks" phase={2} />} />
               <Route path="hod/schemes"    element={<Placeholder title="Schemes of work" phase={3} />} />
               <Route path="head/approve"   element={<Placeholder title="Approvals" phase={2} />} />
               <Route path="head/analytics" element={<Placeholder title="Analytics" phase={2} />} />
-              <Route path="notices"        element={<Placeholder title="Notice board" phase={3} />} />
-              <Route path="conduct"        element={<Placeholder title="Conduct log" phase={3} />} />
               <Route path="exams/*"        element={<Placeholder title="Exams" phase={3} />} />
-              <Route path="admin/*"        element={<Placeholder title="Admin" phase={1} />} />
               <Route path="*"              element={<Navigate to="/" replace />} />
             </Route>
           </Routes>

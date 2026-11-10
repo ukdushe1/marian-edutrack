@@ -6,10 +6,9 @@ import {
 
 export const NAV_BY_ROLE = {
   superAdmin: [
-    { label: 'Setup',    path: '/admin/setup',    icon: Settings },
     { label: 'Users',    path: '/admin/users',    icon: Users },
     { label: 'Syllabi',  path: '/admin/syllabi',  icon: BookMarked },
-    { label: 'Classes',  path: '/admin/classes',  icon: Layers },
+    { label: 'Groups',   path: '/admin/groups',   icon: Layers },
     { label: 'Imports',  path: '/admin/imports',  icon: ClipboardList },
   ],
   teacher: [
@@ -18,12 +17,15 @@ export const NAV_BY_ROLE = {
     { label: 'Register',  path: '/register',      icon: ClipboardList },
     { label: 'Analysis',  path: '/analysis',      icon: BarChart2 },
     { label: 'Reports',   path: '/reports',       icon: FileText },
+    { label: 'Notices',   path: '/notices',       icon: Bell },
     { label: 'AI Tools',  path: '/ai',            icon: GraduationCap },
   ],
   tutor: [
     { label: 'Today',     path: '/',              icon: LayoutGrid },
     { label: 'Register',  path: '/register',      icon: ClipboardList },
+    { label: 'Reports',   path: '/reports',       icon: FileText },
     { label: 'Conduct',   path: '/conduct',       icon: Shield },
+    { label: 'Notices',   path: '/notices',       icon: Bell },
   ],
   hod: [
     { label: 'Today',       path: '/',             icon: LayoutGrid },
