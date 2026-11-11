@@ -17,6 +17,7 @@ import { CheckCircle2, XCircle, Clock, MinusCircle, Download, AlertTriangle } fr
 import clsx from 'clsx';
 import * as XLSX from 'xlsx';
 import toast from 'react-hot-toast';
+import NotifyGuardianButton from '../../components/NotifyGuardianButton';
 
 const STATUS_OPTIONS = [
   { value: 'P', label: 'Present',  icon: CheckCircle2, color: 'text-green-600' },
@@ -127,7 +128,7 @@ export default function RegisterPage() {
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Register');
-    XLSX.writeFile(wb, `register-${group?.syllabusCode ?? gid}-${date}-p${period}.xlsx`);
+    XLSX.writeFile(wb, `register-${group?.syllabusCode ?? group?.id}-${date}-p${period}.xlsx`);
   }
 
   const absentCount = students.filter((s) => entries[s.id] === 'A').length;
@@ -221,6 +222,10 @@ export default function RegisterPage() {
                   <p className="text-xs text-slate-400">{s.candidateNumber}</p>
                 </div>
               </div>
+              <div className="flex items-center gap-2">
+              {status === 'A' && (
+                <NotifyGuardianButton student={s} messageType="absent-today" label="Notify" compact />
+              )}
               <button
                 onClick={() => toggleStudent(s.id)}
                 className={clsx('flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg border transition-colors',
@@ -233,6 +238,7 @@ export default function RegisterPage() {
                 <Icon size={14} />
                 {meta.label}
               </button>
+              </div>
             </div>
           );
         })}

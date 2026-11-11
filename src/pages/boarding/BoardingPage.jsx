@@ -14,6 +14,7 @@ import { Home, Plus, X, BedDouble, LogOut, Stethoscope } from 'lucide-react';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
 import { format, parseISO } from 'date-fns';
+import NotifyGuardianButton from '../../components/NotifyGuardianButton';
 
 const exeatsCol   = () => col('exeats');
 const rollCallCol = () => col('houseRollCall');
@@ -95,10 +96,13 @@ function ExeatPanel() {
                   {e.destination && <p className="text-xs text-slate-400">To: {e.destination}</p>}
                 </div>
                 {!e.returned && (
-                  <button onClick={() => markReturned(e.id)}
-                    className="text-xs bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 px-2.5 py-1.5 rounded-lg font-medium hover:bg-green-200 transition-colors">
-                    Returned
-                  </button>
+                  <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 shrink-0">
+                    {stu && <NotifyGuardianButton student={stu} messageType="exeat-return" label="Remind guardian" compact />}
+                    <button onClick={() => markReturned(e.id)}
+                      className="text-xs bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 px-2.5 py-1.5 rounded-lg font-medium hover:bg-green-200 transition-colors">
+                      Returned
+                    </button>
+                  </div>
                 )}
               </div>
             </div>

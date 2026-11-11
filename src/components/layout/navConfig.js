@@ -1,8 +1,8 @@
 import {
   LayoutGrid, BookOpen, ClipboardList, BarChart2, FileText,
-  Users, Settings, Bell, GraduationCap, Calendar, Shield,
-  BookMarked, MessageSquare, Layers, ChevronRight,
-  Target, UserX, CalendarCheck2, BedDouble,
+  Users, Bell, GraduationCap, Calendar, Shield,
+  BookMarked, Layers, ChevronRight,
+  Target, UserX, CalendarCheck2, BedDouble, Contact,
 } from 'lucide-react';
 
 export const NAV_BY_ROLE = {
@@ -10,6 +10,7 @@ export const NAV_BY_ROLE = {
     { label: 'Users',    path: '/admin/users',    icon: Users },
     { label: 'Syllabi',  path: '/admin/syllabi',  icon: BookMarked },
     { label: 'Groups',   path: '/admin/groups',   icon: Layers },
+    { label: 'Guardians', path: '/admin/guardians', icon: Contact },
     { label: 'Imports',  path: '/admin/imports',  icon: ClipboardList },
   ],
   teacher: [

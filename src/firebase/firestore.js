@@ -60,6 +60,12 @@ export const reportRef  = (id) => ref('reports', id);
 
 export const conductCol = () => col('conduct');
 
+// ─── guardians & messages ──────────────────────────────────────────────────
+
+export const guardiansCol  = () => col('guardians');
+export const guardianRef   = (id) => ref('guardians', id);
+export const messageLogCol = () => col('messageLog');
+
 // ─── audit ─────────────────────────────────────────────────────────────────
 
 export async function writeAuditLog(who, collectionName, docId, before, after) {

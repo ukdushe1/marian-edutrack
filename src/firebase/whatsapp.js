@@ -9,7 +9,7 @@ const callable = httpsCallable(functions, 'sendWhatsAppAlert');
  *
  * @param {object} args
  * @param {string} args.guardianId        guardians/{id}
- * @param {'report-ready'|'attendance-low'|'exeat-return'|'custom'} args.messageType
+ * @param {'report-ready'|'absent-today'|'attendance-low'|'exeat-return'|'custom'} args.messageType
  * @param {string} [args.studentFirstName] required unless messageType is 'custom'
  * @param {string} [args.detail]           required when messageType is 'custom'
  * @returns {Promise<{ success: boolean, status: string, messageId: string|null }>}

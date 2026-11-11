@@ -25,6 +25,7 @@ import PredictionsPage     from './pages/predictions/PredictionsPage';
 import HodMarksPage        from './pages/hod/HodMarksPage';
 import HeadApprovalsPage   from './pages/head/HeadApprovalsPage';
 import BoardingPage        from './pages/boarding/BoardingPage';
+import GuardiansPage       from './pages/admin/GuardiansPage';
 
 function RequireAuth({ children }) {
   const { firebaseUser, loading } = useAuth();
@@ -75,6 +76,7 @@ export default function App() {
               <Route path="notices"        element={<NoticeBoardPage />} />
               <Route path="admin/syllabi"  element={<SyllabiPage />} />
               <Route path="admin/groups"   element={<GroupsPage />} />
+              <Route path="admin/guardians" element={<GuardiansPage />} />
               <Route path="hod/marks"           element={<HodMarksPage />} />
               <Route path="hod/schemes"         element={<SchemesPage />} />
               <Route path="head/approve"        element={<HeadApprovalsPage />} />

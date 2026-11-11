@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
+import NotifyGuardianButton from '../../components/NotifyGuardianButton';
 
 const STATUS_ORDER = ['draft', 'reviewed', 'approved', 'published'];
 const STATUS_META  = {
@@ -231,8 +232,11 @@ export default function ReportsPage() {
                     </button>
                   )}
                   {status === 'published' && (
-                    <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
-                      <Lock size={13}/> Published — locked
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
+                        <Lock size={13}/> Published — locked
+                      </span>
+                      <NotifyGuardianButton student={s} messageType="report-ready" label="Tell guardian" />
                     </div>
                   )}
                 </div>

@@ -13,6 +13,7 @@
  *     the templates listed in TEMPLATES below (language: English "en"). Each has one
  *     body variable {{1}}:
  *       report_ready      "Hello, the school report for {{1}} is now available on Marian EduTrack."
+ *       absent_today      "Hello, {{1}} was marked absent from school today. Please contact the school if you were not aware."
  *       attendance_low    "Hello, {{1}}'s attendance has fallen below 80%. Please contact the school."
  *       exeat_return      "Hello, this is a reminder that {{1}}'s exeat pass expires today."
  *       school_notice     "Marian High School notice: {{1}}"
@@ -41,6 +42,7 @@ const ALLOWED_ROLES = ['superAdmin', 'head', 'tutor', 'boardingMaster'];
 /** messageType → approved Meta template + the text we log for audit. */
 const TEMPLATES = {
   'report-ready':   { name: 'report_ready',   preview: (v) => `Hello, the school report for ${v} is now available on Marian EduTrack.` },
+  'absent-today':   { name: 'absent_today',   preview: (v) => `Hello, ${v} was marked absent from school today. Please contact the school if you were not aware.` },
   'attendance-low': { name: 'attendance_low', preview: (v) => `Hello, ${v}'s attendance has fallen below 80%. Please contact the school.` },
   'exeat-return':   { name: 'exeat_return',   preview: (v) => `Hello, this is a reminder that ${v}'s exeat pass expires today.` },
   'custom':         { name: 'school_notice',  preview: (v) => `Marian High School notice: ${v}` },
