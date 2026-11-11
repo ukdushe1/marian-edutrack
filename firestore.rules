@@ -6,7 +6,7 @@ service cloud.firestore {
     function isSignedIn()       { return request.auth != null; }
     function uid()              { return request.auth.uid; }
     function claims()           { return request.auth.token; }
-    function hasRole(r)         { return r in (claims().roles ?? []); }
+    function hasRole(r)         { return r in claims().get('roles', []); }
     function isStaff()          { return isSignedIn() && (hasRole('teacher') || hasRole('tutor') || hasRole('hod') || hasRole('head') || hasRole('examsOfficer') || hasRole('superAdmin')); }
     function isAdmin()          { return isSignedIn() && hasRole('superAdmin'); }
     function isHead()           { return isSignedIn() && (hasRole('head') || hasRole('superAdmin')); }
