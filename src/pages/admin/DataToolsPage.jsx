@@ -5,7 +5,7 @@
  */
 import { useState, useRef } from 'react';
 import * as XLSX from 'xlsx';
-import { studentsCol, addDoc, now } from '../../firebase/firestore';
+import { now } from '../../firebase/firestore';
 import { db } from '../../firebase/config';
 import { collection, writeBatch, doc } from 'firebase/firestore';
 import { Upload, Download, FileSpreadsheet, AlertCircle, CheckCircle2 } from 'lucide-react';
@@ -48,8 +48,9 @@ export default function DataToolsPage() {
       Object.entries(r).forEach(([k, v]) => { n[k.toLowerCase().trim()] = v; });
       return n;
     });
+    // Headers were lowercased above, so compare lowercase
     REQUIRED_COLS.forEach((col) => {
-      if (!normed[0].hasOwnProperty(col)) errs.push(`Missing column: "${col}"`);
+      if (!Object.prototype.hasOwnProperty.call(normed[0], col.toLowerCase())) errs.push(`Missing column: "${col}"`);
     });
     normed.forEach((r, i) => {
       if (!r.surname)    errs.push(`Row ${i + 2}: surname is empty.`);
