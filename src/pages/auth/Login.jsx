@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { loginEmail, loginGoogle, resetPassword } from '../../firebase/auth';
-import { BookOpen, Globe } from 'lucide-react';
+import { Globe } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function Login() {
@@ -43,14 +43,15 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-ink px-4 py-8 border-t-8 border-ink dark:border-brand-600">
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8 gap-2">
-          <div className="bg-brand-600 text-white rounded-2xl p-3">
-            <BookOpen size={28} />
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight">Marian EduTrack</h1>
+          <img src="/logo.jpg" alt="Marian High School — Seize the moment"
+            className="w-56 h-auto rounded-2xl shadow-sm ring-1 ring-black/5" />
+          <h1 className="text-2xl font-bold tracking-tight mt-2">
+            Marian <span className="text-brand-600">EduTrack</span>
+          </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400">School management system</p>
         </div>
 
