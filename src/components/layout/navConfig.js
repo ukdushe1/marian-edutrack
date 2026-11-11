@@ -63,8 +63,17 @@ export const NAV_BY_ROLE = {
   ],
 };
 
-/** Return first matching role's nav, defaulting to teacher. */
+/** Every staff page, deduplicated by path (dashboard first). */
+function allStaffNav() {
+  const seen = new Set();
+  return ['head', 'superAdmin', 'teacher', 'hod', 'tutor', 'boardingMaster', 'examsOfficer']
+    .flatMap((r) => NAV_BY_ROLE[r])
+    .filter((l) => (seen.has(l.path) ? false : seen.add(l.path)));
+}
+
+/** Super admins see every page; others get their first matching role's nav. */
 export function navForRoles(roles = []) {
+  if (roles.includes('superAdmin')) return allStaffNav();
   const priority = ['superAdmin', 'head', 'examsOfficer', 'hod', 'boardingMaster', 'tutor', 'teacher', 'parent'];
   for (const r of priority) {
     if (roles.includes(r)) return NAV_BY_ROLE[r];

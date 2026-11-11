@@ -11,6 +11,7 @@ import { collection, writeBatch, doc } from 'firebase/firestore';
 import { Upload, Download, FileSpreadsheet, AlertCircle, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
+import TestDataCard from './TestDataCard';
 
 const REQUIRED_COLS = ['surname', 'firstName'];
 
@@ -118,6 +119,8 @@ export default function DataToolsPage() {
         <h1 className="text-xl font-bold">Data tools</h1>
         <p className="text-sm text-slate-500 dark:text-slate-400">Import class lists and students from Excel.</p>
       </div>
+
+      <TestDataCard />
 
       {/* Import card */}
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 space-y-4">

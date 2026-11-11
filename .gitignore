@@ -25,3 +25,8 @@ Thumbs.db
 firebase-debug.log
 firestore-debug.log
 ui-debug.log
+
+# Real student data — never commit (Zimbabwe CDPA)
+*marklist*.csv
+*mark_list*
+test-data/

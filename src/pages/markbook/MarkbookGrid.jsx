@@ -10,6 +10,7 @@
  */
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useAssessments } from '../../hooks/useAssessments';
+import { useStudents } from '../../hooks/useStudents';
 import {
   marksRef, getDoc, setDoc, now, studentsCol,
   query, where, getDocs, onSnapshot,
@@ -26,7 +27,6 @@ export default function MarkbookGrid({ groupId, group }) {
   const { firebaseUser, hasRole } = useAuth();
   const { assessments, loading: loadingA } = useAssessments(groupId);
 
-  const [students,  setStudents]  = useState([]);
   const [marksMap,  setMarksMap]  = useState({});   // { [assessmentId]: entries }
   const [locked,    setLocked]    = useState({});    // { [assessmentId]: bool }
   const [focusCell, setFocusCell] = useState(null);  // { row, col }
@@ -34,15 +34,8 @@ export default function MarkbookGrid({ groupId, group }) {
 
   const isHOD = hasRole('hod', 'head', 'superAdmin');
 
-  // Load students in this group
-  useEffect(() => {
-    if (!group?.studentIds?.length) return;
-    const snap = query(studentsCol(), where('__name__', 'in', group.studentIds.slice(0, 30)));
-    const unsub = onSnapshot(snap, (s) =>
-      setStudents(s.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => a.surname?.localeCompare(b.surname)))
-    );
-    return unsub;
-  }, [group?.studentIds]);
+  // Load students in this group (chunked — classes can exceed 30)
+  const { students } = useStudents(group?.studentIds ?? []);
 
   // Load all marks for each assessment (1 read each)
   useEffect(() => {

@@ -13,6 +13,7 @@ import {
 import { db } from '../../firebase/config';
 import { doc, collection } from 'firebase/firestore';
 import { useTeachingGroups } from '../../hooks/useTeachingGroups';
+import { useStudents } from '../../hooks/useStudents';
 import { CheckCircle2, XCircle, Clock, MinusCircle, Download, AlertTriangle } from 'lucide-react';
 import clsx from 'clsx';
 import * as XLSX from 'xlsx';
@@ -36,30 +37,22 @@ export default function RegisterPage() {
   const [date,     setDate]    = useState(todayISO);
   const [groupId,  setGroupId] = useState('');
   const [period,   setPeriod]  = useState('1');
-  const [students, setStudents]= useState([]);
   const [entries,  setEntries] = useState({});  // { studentId: 'P'|'A'|'L'|'E' }
   const [saving,   setSaving]  = useState(false);
   const [regId,    setRegId]   = useState(null);
 
   const group = groups.find((g) => g.id === groupId) ?? groups[0];
 
-  // Load students when group changes
+  // Load students when group changes (chunked — classes can exceed 30)
+  const { students } = useStudents(group?.studentIds ?? []);
   useEffect(() => {
-    if (!group?.studentIds?.length) return;
-    const q = query(studentsCol(), where('__name__', 'in', group.studentIds.slice(0, 30)));
-    const unsub = onSnapshot(q, (s) => {
-      const sorted = s.docs.map((d) => ({ id: d.id, ...d.data() }))
-        .sort((a, b) => (a.surname ?? '').localeCompare(b.surname ?? ''));
-      setStudents(sorted);
-      // Default everyone to P
-      setEntries((prev) => {
-        const next = { ...prev };
-        sorted.forEach((s) => { if (!next[s.id]) next[s.id] = 'P'; });
-        return next;
-      });
+    // Default everyone to P
+    setEntries((prev) => {
+      const next = { ...prev };
+      students.forEach((s) => { if (!next[s.id]) next[s.id] = 'P'; });
+      return next;
     });
-    return unsub;
-  }, [group?.studentIds]);
+  }, [students]);
 
   // Load existing register for this date + group + period
   useEffect(() => {
