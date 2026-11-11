@@ -6,7 +6,15 @@ service cloud.firestore {
     function isSignedIn()       { return request.auth != null; }
     function uid()              { return request.auth.uid; }
     function claims()           { return request.auth.token; }
-    function hasRole(r)         { return r in claims().get('roles', []); }
+    // Roles come from custom claims when set (by Admin SDK / Cloud Functions);
+    // otherwise from users/{uid}.roles, which only superAdmins can write.
+    function userDocPath()      { return /databases/$(database)/documents/users/$(uid()); }
+    function roles() {
+      return claims().get('roles', null) != null ? claims().roles
+           : exists(userDocPath()) ? get(userDocPath()).data.get('roles', [])
+           : [];
+    }
+    function hasRole(r)         { return isSignedIn() && r in roles(); }
     function isStaff()          { return isSignedIn() && (hasRole('teacher') || hasRole('tutor') || hasRole('hod') || hasRole('head') || hasRole('examsOfficer') || hasRole('superAdmin')); }
     function isAdmin()          { return isSignedIn() && hasRole('superAdmin'); }
     function isHead()           { return isSignedIn() && (hasRole('head') || hasRole('superAdmin')); }
