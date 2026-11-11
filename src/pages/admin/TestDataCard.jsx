@@ -79,7 +79,7 @@ export default function TestDataCard() {
         Upload a class mark list (CSV: <code className="bg-slate-100 dark:bg-slate-700 px-1 rounded">surname,firstName,ex1…ex10,test1…test4</code>).
         It loads those students and marks, plus sample registers,
         reports at every stage, predictions, conduct, notices, guardians, schemes of work, bookings, cover,
-        exams, Cambridge entries, boarding, test staff (incl. a HOD and Vice Principal), preset comments and grade boundaries — enough to try every page.
+        exams, Cambridge entries, boarding, test staff (incl. a HOD and Vice Principal), preset comments, grade boundaries, six subjects, last term’s published exam window and this term’s window at mixed stages — enough to try every page.
         You are set as the class teacher. Everything is tagged as test data and can be removed in one click.
       </p>
 

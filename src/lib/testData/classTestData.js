@@ -10,6 +10,7 @@ import {
   doc, setDoc, deleteDoc, getDocs, collection, query, where, serverTimestamp, Timestamp,
 } from 'firebase/firestore';
 import { db } from '../../firebase/config';
+import { buildExtended } from './extendedTestData';
 
 // [surname, firstName, classExercises x10 (/10), tests x4 (/20)]
 /**
@@ -56,7 +57,7 @@ const COLLECTIONS = [
   'conduct', 'notices', 'guardians', 'predictions', 'resources', 'resourceBookings',
   'coverRequests', 'examSessions', 'cambridgeEntries', 'exeats', 'houseRollCall', 'sickBay',
   'users', 'gradingScales', 'gradeBoundaries', 'commentBank',
-  'examWindows', 'examPapers', 'examSittings',
+  'examWindows', 'examPapers', 'examSittings', 'resultSnapshots',
 ];
 const WIN_ID = `${P}win`;
 
@@ -64,7 +65,7 @@ const WIN_ID = `${P}win`;
 const STAFF = [
   ['staff1', 'Mr T. Moyo',      ['teacher']],
   ['staff2', 'Mrs R. Chikore',  ['teacher', 'classTeacher']],
-  ['staff3', 'Mr K. Dube',      ['hod', 'teacher'], ['4005']],   // HOD of the test subject
+  ['staff3', 'Mr K. Dube',      ['hod', 'teacher'], ['4005', '4024', '2210']],   // HOD of Science, Maths, CS
   ['staff4', 'Ms P. Ncube',     ['examsOfficer']],
   ['staff5', 'Mr S. Banda',     ['boardingMaster']],
   ['staff6', 'Mrs F. Sibanda',  ['vicePrincipal']],
@@ -382,9 +383,10 @@ export function buildTestDocs({ uid, userName = 'Test Teacher', testNumber = nul
   put(`examWindows/${WIN_ID}`, {
     name: `Term 3 ${year} end-of-term exams (test)`, termId: TERM_ID, startDate: addDays(-10), endDate: addDays(-6),
     courseworkFrom: addDays(-100), nextTermOpens: addDays(60), forms: [`${P}class`],
-    defaultSplit: { exam: 70, coursework: 30 }, subjects: { [SYL_ID]: { mode: 'examCoursework', exam: 70, coursework: 30 } },
+    defaultSplit: { exam: 70, coursework: 30 },
+    subjects: { [SYL_ID]: { mode: 'examCoursework', exam: 70, coursework: 30 }, [`${P}syl_cs`]: { mode: 'examCoursework', exam: 70, coursework: 30 } },
     gradeBands: [{ grade: 'A', min: 75 }, { grade: 'B', min: 65 }, { grade: 'C', min: 50 }, { grade: 'D', min: 40 }, { grade: 'E', min: 30 }, { grade: 'U', min: 0 }],
-    minSubjects: 1, // the test data has one subject; real windows default to 5
+    minSubjects: 5,
     stageDue: { papers: addDays(-20), timetable: addDays(-15), sitting: addDays(-6), marking: addDays(-2), moderation: addDays(2), results: addDays(4), comments: addDays(7), approval: addDays(9), published: addDays(10) },
     approved: true, approvedBy: staffId('staff6'), timetablePublished: true, resultsChecked: false, published: false, version: 0, createdAt: ts,
   });
@@ -420,6 +422,12 @@ export function buildTestDocs({ uid, userName = 'Test Teacher', testNumber = nul
     put(`teachingGroups/${GROUP_ID}/assessments/exam_${pp.id}/marks/entries`, { entries, updatedAt: ts });
   });
 
+  // ── More subjects, last term's published window, this term at mixed stages ──
+  buildExtended({
+    put, uid, roster, P, sid, staffId, addDays, ts, year, className, SYL_ID, GROUP_ID, TERM_ID, WIN_ID,
+    bands: [{ grade: 'A', min: 75 }, { grade: 'B', min: 65 }, { grade: 'C', min: 50 }, { grade: 'D', min: 40 }, { grade: 'E', min: 30 }, { grade: 'U', min: 0 }],
+  });
+
   put(`sickBay/${P}sick1`, { studentId: boarders[4], complaint: 'Headache and mild fever', discharged: false, admittedAt: Timestamp.now() });
   put(`sickBay/${P}sick2`, { studentId: boarders[5], complaint: 'Sprained ankle (sports)', discharged: true, admittedAt: Timestamp.fromDate(new Date(Date.now() - 2 * 864e5)), dischargedAt: Timestamp.now() });
 
@@ -447,25 +455,31 @@ async function runLimited(tasks, limit, onProgress) {
  */
 export async function seedTestData({ uid, userName, testNumber, students, className, onProgress }) {
   const docs = buildTestDocs({ uid, userName, testNumber, students, className });
-  const groupDoc = docs.find(([p]) => p === `teachingGroups/${GROUP_ID}`);
-  await setDoc(doc(db, groupDoc[0]), groupDoc[1]);
-  const rest = docs.filter((d) => d !== groupDoc).map(([path, data]) => ({
-    label: path, run: () => setDoc(doc(db, path), data),
-  }));
-  const errors = await runLimited(rest, 8, (n, total) => onProgress?.(n + 1, total + 1));
+  // Classes first (assessment rules look them up), then shallow paths before deep ones
+  const first = docs.filter(([p]) => /^teachingGroups\/[^/]+$/.test(p));
+  await Promise.all(first.map(([p, d]) => setDoc(doc(db, p), d)));
+  const rest = docs.filter((d) => !first.includes(d))
+    .sort((a, b) => a[0].split('/').length - b[0].split('/').length)
+    .map(([path, data]) => ({ label: path, run: () => setDoc(doc(db, path), data) }));
+  const errors = await runLimited(rest, 8, (n, total) => onProgress?.(n + first.length, total + first.length));
   return { written: docs.length - errors.length, errors };
 }
 
 /** Delete every document created by seedTestData (subcollections first). */
 export async function removeTestData({ onProgress } = {}) {
   const tasks = [];
-  const assessments = await getDocs(collection(db, 'teachingGroups', GROUP_ID, 'assessments'));
-  assessments.forEach((a) => {
-    tasks.push({ label: a.ref.path + '/marks', run: () => deleteDoc(doc(db, a.ref.path, 'marks', 'entries')) });
-    tasks.push({ label: a.ref.path, run: () => deleteDoc(a.ref) });
-  });
-  const schemes = await getDocs(collection(db, 'teachingGroups', GROUP_ID, 'schemeEntries'));
-  schemes.forEach((s) => tasks.push({ label: s.ref.path, run: () => deleteDoc(s.ref) }));
+  // Sub-collections of every test class (marks → assessments, schemes)
+  const testGroups = await getDocs(query(collection(db, 'teachingGroups'), where('testData', '==', true)));
+  const groupIds = [...new Set([GROUP_ID, ...testGroups.docs.map((d) => d.id)])];
+  for (const gid of groupIds) {
+    const assessments = await getDocs(collection(db, 'teachingGroups', gid, 'assessments'));
+    assessments.forEach((a) => {
+      tasks.push({ label: a.ref.path + '/marks', run: () => deleteDoc(doc(db, a.ref.path, 'marks', 'entries')) });
+      tasks.push({ label: a.ref.path, run: () => deleteDoc(a.ref) });
+    });
+    const schemes = await getDocs(collection(db, 'teachingGroups', gid, 'schemeEntries'));
+    schemes.forEach((s) => tasks.push({ label: s.ref.path, run: () => deleteDoc(s.ref) }));
+  }
 
   const subErrors = await runLimited(tasks, 8, (n) => onProgress?.(n, tasks.length));
 
@@ -476,10 +490,12 @@ export async function removeTestData({ onProgress } = {}) {
   }
   // Created through the module's screens for the test window (not tagged at seed time)
   for (const [name, field] of [['resultSnapshots', 'windowId'], ['reports', 'windowId']]) {
-    const snap = await getDocs(query(collection(db, name), where(field, '==', WIN_ID)));
+    const snap = await getDocs(query(collection(db, name), where(field, 'in', [WIN_ID, `${P}win_prev`])));
     snap.forEach((d) => topTasks.push({ label: d.ref.path, run: () => deleteDoc(d.ref) }));
   }
-  [`${P}paper1`, `${P}paper2`].forEach((id) => topTasks.push({ label: `examSessions/term_${id}`, run: () => deleteDoc(doc(db, 'examSessions', `term_${id}`)) }));
+  // Timetable entries published from the test windows
+  const sess = await getDocs(query(collection(db, 'examSessions'), where('windowId', 'in', [WIN_ID, `${P}win_prev`])));
+  sess.forEach((d) => topTasks.push({ label: d.ref.path, run: () => deleteDoc(d.ref) }));
   const errors = await runLimited(topTasks, 8, (n) => onProgress?.(tasks.length + n, tasks.length + topTasks.length));
   return { removed: tasks.length + topTasks.length - subErrors.length - errors.length, errors: [...subErrors, ...errors] };
 }
