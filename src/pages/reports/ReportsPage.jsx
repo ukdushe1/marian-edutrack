@@ -190,6 +190,8 @@ export default function ReportsPage() {
               {isOpen && (
                 <div className="border-t border-slate-100 dark:border-slate-700 p-4 space-y-3">
                   {/* Subject comment */}
+                  <EffortSelect value={report?.effort ?? ''} readOnly={status === 'published' || status === 'approved'}
+                    onSave={(v) => saveComment(s.id, 'effort', v)} />
                   <CommentField
                     label="Subject comment"
                     picker={{ comments: commentBank, subject: group?.syllabusCode ?? '', student: s }}
@@ -290,6 +292,21 @@ function CommentField({ label, value, onSave, readOnly, busy, picker }) {
           {busy ? 'Saving…' : 'Save'}
         </button>
       )}
+    </div>
+  );
+}
+
+const EFFORTS = [['A', 'Excellent'], ['B', 'Good'], ['C', 'Satisfactory'], ['D', 'Needs effort'], ['E', 'Poor']];
+
+function EffortSelect({ value, onSave, readOnly }) {
+  return (
+    <div className="flex items-center gap-2">
+      <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Effort</label>
+      <select value={value} disabled={readOnly} onChange={(e) => onSave(e.target.value)}
+        className="text-sm border border-slate-200 dark:border-slate-600 rounded-lg px-2 py-1 bg-white dark:bg-slate-900">
+        <option value="">—</option>
+        {EFFORTS.map(([k, l]) => <option key={k} value={k}>{k} — {l}</option>)}
+      </select>
     </div>
   );
 }

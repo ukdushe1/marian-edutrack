@@ -29,6 +29,7 @@ service cloud.firestore {
     // Subjects (syllabus codes) a HOD is responsible for, from their user profile
     function hodSubjects()      { return exists(userDocPath()) ? get(userDocPath()).data.get('hodSubjects', []) : []; }
     function hodOf(code)        { return hasRole('hod') && code in hodSubjects(); }
+    function same(field)        { return request.resource.data.get(field, null) == resource.data.get(field, null); }
     function onlyChanges(keys)  { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys); }
 
     // ── users ─────────────────────────────────────────────────────────────
@@ -80,18 +81,28 @@ service cloud.firestore {
           (isStaff() && uid() in get(/databases/$(database)/documents/teachingGroups/$(groupId)).data.teacherIds);
       }
 
-      // Assessments: teacher in the group or HOD/admin
+      // Assessments: the class's teachers or HOD/admin. Only HOD+ change lock/moderation;
+      // once frozen (published exam results) only the Principal / VP can change them.
+      function teachesGroup() { return uid() in get(/databases/$(database)/documents/teachingGroups/$(groupId)).data.get('teacherIds', []); }
       match /assessments/{aId} {
         allow read: if isStaff();
-        allow write: if isStaff() &&
-          (resource == null || isHOD() || uid() in get(/databases/$(database)/documents/teachingGroups/$(groupId)).data.teacherIds);
+        allow create: if isStaff() && (isHOD() || teachesGroup());
+        allow update: if isStaff() && (isHOD() || teachesGroup())
+                      && (!resource.data.get('frozen', false) || isHead())
+                      && (isHOD() || (same('locked') && same('moderation') && same('frozen')));
+        allow delete: if isAdmin() || ((isHOD() || teachesGroup()) && !resource.data.get('frozen', false));
 
-        // Marks: same teacher + HOD/admin; HOD can lock (locked field)
+        // Marks: the class's teachers + HOD/admin; blocked when the assessment is
+        // locked (HOD+ only) or frozen (Principal / VP only).
+        function assessmentPath() { return /databases/$(database)/documents/teachingGroups/$(groupId)/assessments/$(aId); }
         match /marks/{mId} {
           allow read: if isStaff();
           allow write: if isStaff() &&
             (!('locked' in request.resource.data) || isHOD()) &&
-            (isHOD() || uid() in get(/databases/$(database)/documents/teachingGroups/$(groupId)).data.teacherIds);
+            (isHOD() || teachesGroup()) &&
+            (!exists(assessmentPath()) || (
+              (!get(assessmentPath()).data.get('locked', false) || isHOD()) &&
+              (!get(assessmentPath()).data.get('frozen', false) || isHead())));
         }
       }
     }
@@ -173,6 +184,42 @@ service cloud.firestore {
     // ── predictions (one doc per teaching group) ──────────────────────────
     match /predictions/{id} {
       allow read, write: if isStaff();
+    }
+
+    // ── end-of-term exam module ───────────────────────────────────────────
+    match /examWindows/{id} {
+      allow read:   if isStaff();
+      allow create: if isExams();
+      // Exams officer runs the window; approving and publishing are Principal / VP only
+      allow update: if isHead() || (isExams() && same('approved') && same('published') && same('version'));
+      allow delete: if isAdmin();
+    }
+    match /examPapers/{id} {
+      allow read:   if isStaff();
+      allow create: if isExams() || hodOf(request.resource.data.syllabusCode);
+      allow update: if
+        // HOD of the subject (vets) or Principal / VP: anything
+        isSenior() || hodOf(resource.data.syllabusCode)
+        // Exams officer: timetable, printing — but not vetting
+        || (hasRole('examsOfficer') && (same('status') || request.resource.data.status == 'printed'))
+        // Setter: only their own draft, and it stays a draft
+        || (resource.data.get('setterId', '') == uid() && resource.data.status == 'draft'
+            && request.resource.data.status == 'draft' && same('setterId'))
+        // Invigilator: attendance sign-off and incidents only
+        || (isStaff() && uid() in resource.data.get('invigilatorIds', [])
+            && onlyChanges(['attendanceSubmitted', 'attendanceBy', 'incidents', 'updatedAt']));
+      allow delete: if isAdmin() || ((isExams() || hodOf(resource.data.syllabusCode)) && resource.data.status == 'draft');
+    }
+    match /examSittings/{id} {
+      allow read:   if isStaff();
+      allow create, update: if isExams() || (isStaff() && uid() in
+        get(/databases/$(database)/documents/examPapers/$(request.resource.data.paperId)).data.get('invigilatorIds', []));
+      allow delete: if isExams();
+    }
+    // Saved once at publication; parents will read their own child's in phase 2
+    match /resultSnapshots/{id} {
+      allow read:  if isStaff();
+      allow write: if isHead();
     }
 
     // ── exams ─────────────────────────────────────────────────────────────

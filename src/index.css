@@ -27,3 +27,13 @@
     @apply outline-none ring-2 ring-brand-500 ring-inset;
   }
 }
+
+/* Printing (report cards, seating plans): only the page content */
+@media print {
+  aside, body nav, .print\:hidden { display: none !important; }
+  .h-screen { height: auto !important; }
+  .overflow-hidden, .overflow-y-auto { overflow: visible !important; }
+  main { padding: 0 !important; }
+  .report-card { break-after: page; border: none !important; box-shadow: none !important; }
+  body { background: #fff !important; }
+}

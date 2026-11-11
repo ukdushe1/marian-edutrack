@@ -56,7 +56,9 @@ const COLLECTIONS = [
   'conduct', 'notices', 'guardians', 'predictions', 'resources', 'resourceBookings',
   'coverRequests', 'examSessions', 'cambridgeEntries', 'exeats', 'houseRollCall', 'sickBay',
   'users', 'gradingScales', 'gradeBoundaries', 'commentBank',
+  'examWindows', 'examPapers', 'examSittings',
 ];
+const WIN_ID = `${P}win`;
 
 // Invented staff (profiles only — they cannot sign in)
 const STAFF = [
@@ -128,8 +130,8 @@ export function buildTestDocs({ uid, userName = 'Test Teacher', testNumber = nul
   put(`syllabi/${SYL_ID}`, {
     code: '4005', name: 'Combined Science (test)', level: 'O Level',
     components: [
-      { paper: 'Class exercises', weight: 30, maxMark: 10 },
-      { paper: 'Tests',           weight: 70, maxMark: 20 },
+      { paper: 'Theory papers',            weight: 70, maxMark: 100 },
+      { paper: 'Coursework (practicals)',  weight: 30, maxMark: 100 },
     ],
     topics: [
       { id: 't1', name: 'Cells and organisation' },
@@ -231,6 +233,7 @@ export function buildTestDocs({ uid, userName = 'Test Teacher', testNumber = nul
         : `${first} needs to focus on class exercises and test preparation (${overall}%).`,
       tutorComment: status !== 'draft' ? `${first} is a cooperative member of ${className}.` : '',
       headComment: status === 'published' || status === 'approved' ? 'Well done this term.' : '',
+      effort: 'ABCDE'.charAt((i * 3) % 5),
       status, createdAt: ts, updatedAt: ts,
       ...(status !== 'draft' ? { reviewedBy: uid } : {}),
       ...(status === 'approved' || status === 'published' ? { approvedBy: uid } : {}),
@@ -371,6 +374,52 @@ export function buildTestDocs({ uid, userName = 'Test Teacher', testNumber = nul
       studentId: id, date: days[4], present: k !== 3, house: HOUSES[(k * 3) % 4], createdAt: ts,
     });
   });
+  // ── End-of-term exam window, stopped at moderation (stage 6) ──
+  const papers = [
+    { id: `${P}paper1`, paper: 'Paper 1', duration: 90, questions: [10, 10, 10, 10, 10, 10], day: -10, start: '08:00', venue: 'Main Hall', inv: ['staff2'] },
+    { id: `${P}paper2`, paper: 'Paper 2', duration: 60, questions: [10, 10, 10, 10], day: -8, start: '10:30', venue: 'Science Lab 1', inv: ['staff4'] },
+  ];
+  put(`examWindows/${WIN_ID}`, {
+    name: `Term 3 ${year} end-of-term exams (test)`, termId: TERM_ID, startDate: addDays(-10), endDate: addDays(-6),
+    courseworkFrom: addDays(-100), nextTermOpens: addDays(60), forms: [`${P}class`],
+    defaultSplit: { exam: 70, coursework: 30 }, subjects: { [SYL_ID]: { mode: 'examCoursework', exam: 70, coursework: 30 } },
+    gradeBands: [{ grade: 'A', min: 75 }, { grade: 'B', min: 65 }, { grade: 'C', min: 50 }, { grade: 'D', min: 40 }, { grade: 'E', min: 30 }, { grade: 'U', min: 0 }],
+    minSubjects: 1, // the test data has one subject; real windows default to 5
+    stageDue: { papers: addDays(-20), timetable: addDays(-15), sitting: addDays(-6), marking: addDays(-2), moderation: addDays(2), results: addDays(4), comments: addDays(7), approval: addDays(9), published: addDays(10) },
+    approved: true, approvedBy: staffId('staff6'), timetablePublished: true, resultsChecked: false, published: false, version: 0, createdAt: ts,
+  });
+  // Sitting exceptions: [student index, paper index, status]
+  const EXC = [[4, 1, 'sick'], [6, 0, 'absent'], [11, 1, 'malpractice'], [14, 0, 'excused'], [14, 1, 'excused']];
+  papers.forEach((pp, pi) => {
+    const maxMark = pp.questions.reduce((a, b) => a + b, 0);
+    put(`examPapers/${pp.id}`, {
+      windowId: WIN_ID, syllabusId: SYL_ID, syllabusCode: '4005', paper: pp.paper, maxMark, duration: pp.duration,
+      questions: pp.questions.map((m, q) => ({ no: String(q + 1), marks: m, topicId: `t${(q % 4) + 1}` })),
+      setterId: staffId('staff1'), status: 'vetted', vettedBy: staffId('staff3'),
+      date: addDays(pp.day), start: pp.start, venue: pp.venue, seats: roster.length,
+      invigilatorIds: pp.inv.map(staffId), attendanceSubmitted: true, incidents: '', createdAt: ts,
+    });
+    const entries = {};
+    roster.forEach((s, i) => {
+      const exc = EXC.find(([si, p]) => si === i && p === pi);
+      put(`examSittings/${pp.id}_${sid(i)}`, { paperId: pp.id, windowId: WIN_ID, studentId: sid(i), status: exc ? exc[2] : 'present' });
+      if (exc) return;
+      // Per-question marks derived from the student's real test average, varied per question
+      const t = s[3].reduce((a, b) => a + b, 0) / 80;
+      const perQuestion = {};
+      pp.questions.forEach((m, q) => {
+        perQuestion[String(q + 1)] = Math.round(m * Math.min(1, Math.max(0, t + (((i * 7 + q * 3 + pi) % 9) - 4) / 25)));
+      });
+      entries[sid(i)] = { raw: Object.values(perQuestion).reduce((a, b) => a + b, 0), status: null, perQuestion };
+    });
+    put(`teachingGroups/${GROUP_ID}/assessments/exam_${pp.id}`, {
+      title: `${pp.paper} — Term 3 ${year} end-of-term exams (test)`, component: 'Exam', maxMark, date: addDays(pp.day),
+      examPaperId: pp.id, windowId: WIN_ID, questions: pp.questions.map((m, q) => ({ no: String(q + 1), marks: m })),
+      submitted: true, submittedBy: uid, locked: false, createdBy: uid, createdAt: ts,
+    });
+    put(`teachingGroups/${GROUP_ID}/assessments/exam_${pp.id}/marks/entries`, { entries, updatedAt: ts });
+  });
+
   put(`sickBay/${P}sick1`, { studentId: boarders[4], complaint: 'Headache and mild fever', discharged: false, admittedAt: Timestamp.now() });
   put(`sickBay/${P}sick2`, { studentId: boarders[5], complaint: 'Sprained ankle (sports)', discharged: true, admittedAt: Timestamp.fromDate(new Date(Date.now() - 2 * 864e5)), dischargedAt: Timestamp.now() });
 
@@ -425,6 +474,12 @@ export async function removeTestData({ onProgress } = {}) {
     const snap = await getDocs(query(collection(db, name), where('testData', '==', true)));
     snap.forEach((d) => topTasks.push({ label: d.ref.path, run: () => deleteDoc(d.ref) }));
   }
+  // Created through the module's screens for the test window (not tagged at seed time)
+  for (const [name, field] of [['resultSnapshots', 'windowId'], ['reports', 'windowId']]) {
+    const snap = await getDocs(query(collection(db, name), where(field, '==', WIN_ID)));
+    snap.forEach((d) => topTasks.push({ label: d.ref.path, run: () => deleteDoc(d.ref) }));
+  }
+  [`${P}paper1`, `${P}paper2`].forEach((id) => topTasks.push({ label: `examSessions/term_${id}`, run: () => deleteDoc(doc(db, 'examSessions', `term_${id}`)) }));
   const errors = await runLimited(topTasks, 8, (n) => onProgress?.(tasks.length + n, tasks.length + topTasks.length));
   return { removed: tasks.length + topTasks.length - subErrors.length - errors.length, errors: [...subErrors, ...errors] };
 }

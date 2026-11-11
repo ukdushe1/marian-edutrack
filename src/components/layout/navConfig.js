@@ -2,7 +2,7 @@ import {
   LayoutGrid, BookOpen, ClipboardList, BarChart2, FileText,
   Users, Bell, GraduationCap, Calendar, Shield,
   BookMarked, Layers, ChevronRight,
-  Target, UserX, CalendarCheck2, BedDouble, Contact, MessageSquareText, ScrollText,
+  Target, UserX, CalendarCheck2, BedDouble, Contact, MessageSquareText, ScrollText, ClipboardCheck, ListTodo,
 } from 'lucide-react';
 
 // Keys are stored role names (see src/lib/roles.js). Legacy "head"/"tutor"
@@ -20,6 +20,7 @@ export const NAV_BY_ROLE = {
   teacher: [
     { label: 'Today',       path: '/',              icon: LayoutGrid },
     { label: 'Markbook',    path: '/markbook',      icon: BookOpen },
+    { label: 'Exam tasks',  path: '/exam-tasks',    icon: ListTodo },
     { label: 'Register',    path: '/register',      icon: ClipboardList },
     { label: 'Analysis',    path: '/analysis',      icon: BarChart2 },
     { label: 'Reports',     path: '/reports',       icon: FileText },
@@ -40,6 +41,7 @@ export const NAV_BY_ROLE = {
   hod: [
     { label: 'Today',        path: '/',               icon: LayoutGrid },
     { label: 'Dept Marks',   path: '/hod/marks',      icon: BookOpen },
+    { label: 'End of term',  path: '/exams/term',     icon: ClipboardCheck },
     { label: 'Syllabi',      path: '/admin/syllabi',  icon: BookMarked },
     { label: 'Comment bank', path: '/admin/comments', icon: MessageSquareText },
     { label: 'Schemes',      path: '/hod/schemes',    icon: Layers },
@@ -50,6 +52,7 @@ export const NAV_BY_ROLE = {
   vicePrincipal: [
     { label: 'Dashboard',    path: '/',               icon: LayoutGrid },
     { label: 'Approvals',    path: '/head/approve',   icon: FileText },
+    { label: 'End of term',  path: '/exams/term',     icon: ClipboardCheck },
     { label: 'Analytics',    path: '/head/analytics', icon: BarChart2 },
     { label: 'Cover',        path: '/cover',          icon: UserX },
     { label: 'Comment bank', path: '/admin/comments', icon: MessageSquareText },
@@ -60,6 +63,7 @@ export const NAV_BY_ROLE = {
     { label: 'Notices',   path: '/notices',        icon: Bell },
   ],
   examsOfficer: [
+    { label: 'End of term', path: '/exams/term',      icon: ClipboardCheck },
     { label: 'Timetable',  path: '/exams/timetable',  icon: Calendar },
     { label: 'Seating',    path: '/exams/seating',    icon: Layers },
     { label: 'Entries',    path: '/exams/entries',    icon: GraduationCap },
