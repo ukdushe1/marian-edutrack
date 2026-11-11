@@ -78,6 +78,18 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // ── guardians — contact details; staff read, admin write ──────────────
+    match /guardians/{id} {
+      allow read:  if isStaff();
+      allow write: if isAdmin();
+    }
+
+    // ── message log — written only by Cloud Functions (Admin SDK) ─────────
+    match /messageLog/{id} {
+      allow read:  if isAdmin() || isHead();
+      allow write: if false;
+    }
+
     // ── bookings ──────────────────────────────────────────────────────────
     match /bookings/{id} {
       allow read:  if isStaff();
