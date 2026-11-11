@@ -33,6 +33,8 @@ const UsersPage = lazy(() => import('./pages/admin/UsersPage'));
 const CommentBankPage = lazy(() => import('./pages/admin/CommentBankPage'));
 const AuditLogPage = lazy(() => import('./pages/admin/AuditLogPage'));
 const BackupPage = lazy(() => import('./pages/admin/BackupPage'));
+const AnalyticsPage = lazy(() => import('./pages/head/AnalyticsPage'));
+const GradeBoundariesPage = lazy(() => import('./pages/exams/GradeBoundariesPage'));
 const TermExamsHome = lazy(() => import('./pages/termExams/TermExamsHome'));
 const ExamWindowPage = lazy(() => import('./pages/termExams/WindowPage'));
 const ExamMarkingGrid = lazy(() => import('./pages/termExams/MarkingGrid'));
@@ -99,11 +101,11 @@ export default function App() {
               <Route path="hod/marks"           element={<HodMarksPage />} />
               <Route path="hod/schemes"         element={<SchemesPage />} />
               <Route path="head/approve"        element={<HeadApprovalsPage />} />
-              <Route path="head/analytics"      element={<Placeholder title="Analytics" phase={2} />} />
+              <Route path="head/analytics"      element={<AnalyticsPage />} />
               <Route path="exams/timetable"     element={<ExamTimetablePage />} />
               <Route path="exams/entries"       element={<CambridgeEntriesPage />} />
-              <Route path="exams/seating"       element={<Placeholder title="Seating plans" phase={3} />} />
-              <Route path="exams/boundaries"    element={<Placeholder title="Grade boundaries" phase={3} />} />
+              <Route path="exams/seating"       element={<Navigate to="/exams/term" replace />} />
+              <Route path="exams/boundaries"    element={<GradeBoundariesPage />} />
               <Route path="cover"               element={<CoverReliefPage />} />
               <Route path="bookings"            element={<BookingsPage />} />
               <Route path="predictions"         element={<PredictionsPage />} />
@@ -114,14 +116,5 @@ export default function App() {
         </BrowserRouter>
       </AuthProvider>
     </ThemeProvider>
-  );
-}
-
-function Placeholder({ title, phase }) {
-  return (
-    <div className="text-center py-16 text-slate-400">
-      <p className="text-lg font-semibold">{title}</p>
-      <p className="text-sm mt-1">Coming in Phase {phase}</p>
-    </div>
   );
 }

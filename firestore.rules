@@ -61,7 +61,7 @@ service cloud.firestore {
                       (request.resource.data.subject == '' || hodOf(request.resource.data.subject)));
       allow delete: if isAdmin();
     }
-    match /gradeBoundaries/{id} { allow read: if isStaff(); allow write: if isAdmin(); }
+    match /gradeBoundaries/{id} { allow read: if isStaff(); allow write: if isExams(); }
     match /gradingScales/{id}   { allow read: if isStaff(); allow write: if isAdmin(); }
 
     // ── school structure ──────────────────────────────────────────────────

@@ -66,7 +66,6 @@ export const NAV_BY_ROLE = {
   examsOfficer: [
     { label: 'End of term', path: '/exams/term',      icon: ClipboardCheck },
     { label: 'Timetable',  path: '/exams/timetable',  icon: Calendar },
-    { label: 'Seating',    path: '/exams/seating',    icon: Layers },
     { label: 'Entries',    path: '/exams/entries',    icon: GraduationCap },
     { label: 'Boundaries', path: '/exams/boundaries', icon: ChevronRight },
   ],
