@@ -15,14 +15,17 @@ service cloud.firestore {
            : [];
     }
     function hasRole(r)         { return isSignedIn() && r in roles(); }
-    function isStaff()          { return isSignedIn() && (hasRole('teacher') || hasRole('tutor') || hasRole('hod') || hasRole('head') || hasRole('examsOfficer') || hasRole('superAdmin')); }
+    function isStaff()          { return isSignedIn() && (hasRole('teacher') || hasRole('tutor') || hasRole('hod') || hasRole('head') || hasRole('examsOfficer') || hasRole('boardingMaster') || hasRole('superAdmin')); }
     function isAdmin()          { return isSignedIn() && hasRole('superAdmin'); }
     function isHead()           { return isSignedIn() && (hasRole('head') || hasRole('superAdmin')); }
     function isHOD()            { return isSignedIn() && (hasRole('hod') || hasRole('head') || hasRole('superAdmin')); }
+    function isExams()          { return isSignedIn() && (hasRole('examsOfficer') || hasRole('head') || hasRole('superAdmin')); }
+    function isBoarding()       { return isSignedIn() && (hasRole('boardingMaster') || hasRole('head') || hasRole('superAdmin')); }
+    function onlyChanges(keys)  { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys); }
 
     // ── users ─────────────────────────────────────────────────────────────
     match /users/{userId} {
-      allow read:  if isSignedIn() && (uid() == userId || isAdmin());
+      allow read:  if isSignedIn() && (uid() == userId || isStaff());
       allow write: if isAdmin();
     }
 
@@ -40,6 +43,13 @@ service cloud.firestore {
     match /teachingGroups/{groupId} {
       allow read: if isStaff();
       allow write: if isAdmin();
+
+      // Schemes of work: group teachers or HOD/admin
+      match /schemeEntries/{eId} {
+        allow read:  if isStaff();
+        allow write: if isHOD() ||
+          (isStaff() && uid() in get(/databases/$(database)/documents/teachingGroups/$(groupId)).data.teacherIds);
+      }
 
       // Assessments: teacher in the group or HOD/admin
       match /assessments/{aId} {
@@ -92,16 +102,54 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // ── message log — written only by Cloud Functions (Admin SDK) ─────────
+    // ── message log — append-only audit of guardian messages ──────────────
+    // Cloud Functions write via Admin SDK; staff may log click-to-send links they open.
     match /messageLog/{id} {
-      allow read:  if isAdmin() || isHead();
-      allow write: if false;
+      allow read:   if isHead();
+      allow create: if isStaff()
+        && request.resource.data.sentBy == uid()
+        && request.resource.data.channel == 'whatsapp-link'
+        && request.resource.data.status == 'opened';
+      allow update, delete: if false;
     }
 
-    // ── bookings ──────────────────────────────────────────────────────────
-    match /bookings/{id} {
+    // ── resources & bookings ──────────────────────────────────────────────
+    match /resources/{id} {
       allow read:  if isStaff();
-      allow write: if isStaff();
+      allow write: if isHOD();
     }
+    match /resourceBookings/{id} {
+      allow read:   if isStaff();
+      allow create: if isStaff() && request.resource.data.bookedBy == uid();
+      allow update, delete: if isStaff() && (resource.data.bookedBy == uid() || isHOD());
+    }
+
+    // ── notices — HOD/head post; any staff may mark as read ───────────────
+    match /notices/{id} {
+      allow read:   if isStaff();
+      allow create: if isHOD();
+      allow update: if isHOD() || (isStaff() && onlyChanges(['readBy']));
+      allow delete: if isHOD();
+    }
+
+    // ── cover & relief ────────────────────────────────────────────────────
+    match /coverRequests/{id} {
+      allow read, write: if isStaff();
+    }
+
+    // ── predictions (one doc per teaching group) ──────────────────────────
+    match /predictions/{id} {
+      allow read, write: if isStaff();
+    }
+
+    // ── exams ─────────────────────────────────────────────────────────────
+    match /examSessions/{id}     { allow read: if isStaff(); allow write: if isExams(); }
+    match /cambridgeEntries/{id} { allow read: if isStaff(); allow write: if isExams(); }
+
+    // ── boarding ──────────────────────────────────────────────────────────
+    match /exeats/{id}        { allow read: if isStaff();    allow write: if isBoarding(); }
+    match /houseRollCall/{id} { allow read: if isStaff();    allow write: if isBoarding(); }
+    // Medical — boarding staff and head only
+    match /sickBay/{id}       { allow read, write: if isBoarding(); }
   }
 }
