@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { LogOut, Moon, Sun, WifiOff } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -93,7 +94,9 @@ export default function AppShell() {
               Your account is set up but has no role yet. Ask the Principal to assign your role under <strong>Users</strong>.
             </div>
           )}
-          <Outlet />
+          <Suspense fallback={<div className="flex justify-center py-16"><div className="w-6 h-6 rounded-full border-2 border-brand-600 border-t-transparent animate-spin" /></div>}>
+            <Outlet />
+          </Suspense>
         </main>
 
         {/* Bottom tab bar — mobile only */}

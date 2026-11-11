@@ -1,7 +1,16 @@
-import { httpsCallable } from 'firebase/functions';
-import { functions } from './config';
+import app from './config';
 
-const callable = httpsCallable(functions, 'sendWhatsAppAlert');
+// Loaded on first use only, so Cloud Functions code isn't in the start-up bundle
+let callable;
+async function getCallable() {
+  if (!callable) {
+    const { getFunctions, httpsCallable, connectFunctionsEmulator } = await import('firebase/functions');
+    const functions = getFunctions(app, 'us-central1');
+    if (import.meta.env.DEV && import.meta.env.VITE_USE_EMULATORS === 'true') connectFunctionsEmulator(functions, 'localhost', 5001);
+    callable = httpsCallable(functions, 'sendWhatsAppAlert');
+  }
+  return callable;
+}
 
 /**
  * Send a WhatsApp alert to one guardian via the sendWhatsAppAlert Cloud Function.
@@ -15,7 +24,7 @@ const callable = httpsCallable(functions, 'sendWhatsAppAlert');
  * @returns {Promise<{ success: boolean, status: string, messageId: string|null }>}
  */
 export async function sendWhatsAppAlert(args) {
-  const { data } = await callable(args);
+  const { data } = await (await getCallable())(args);
   return data;
 }
 

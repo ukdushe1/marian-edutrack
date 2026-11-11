@@ -4,14 +4,14 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   build: {
-    sourcemap: true,
+    // Maps are generated for debugging but not linked from the shipped files
+    sourcemap: 'hidden',
     rollupOptions: {
       output: {
+        // Core libraries every page needs; pages and xlsx are split automatically (lazy routes)
         manualChunks: {
-          firebase:  ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/functions', 'firebase/storage'],
-          xlsx:      ['xlsx'],
-          router:    ['react-router-dom'],
-          ui:        ['lucide-react', 'clsx', 'react-hot-toast'],
+          firebase: ['firebase/app', 'firebase/auth', 'firebase/firestore'],
+          react:    ['react', 'react-dom', 'react-router-dom'],
         },
       },
     },
