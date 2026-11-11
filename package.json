@@ -9,7 +9,10 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "deploy": "npm run build && firebase deploy --only hosting,firestore",
-    "deploy:functions": "firebase deploy --only functions"
+    "deploy:functions": "firebase deploy --only functions",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:rules": "firebase emulators:exec --only firestore --project marian-edutrack-rules-test \"vitest run --config vitest.rules.config.js\""
   },
   "dependencies": {
     "clsx": "^2.1.1",
@@ -24,6 +27,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.13.0",
+    "@firebase/rules-unit-testing": "^6.0.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.3",
@@ -36,6 +40,7 @@
     "globals": "^15.11.0",
     "postcss": "^8.5.32",
     "tailwindcss": "^3.4.17",
-    "vite": "^5.4.10"
+    "vite": "^5.4.10",
+    "vitest": "^2.1.9"
   }
 }
