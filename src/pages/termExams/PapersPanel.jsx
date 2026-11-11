@@ -105,7 +105,7 @@ function PaperForm({ data, paper, syl, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4 overflow-y-auto">
-      <form onSubmit={save} className="w-full max-w-lg bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-5 my-4 space-y-3">
+      <form onSubmit={save} className="w-full max-w-lg bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-5 my-4 space-y-3 max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain">
         <div className="flex items-center justify-between">
           <h2 className="font-semibold">{paper ? 'Edit paper' : 'New paper'} — {syl.code}</h2>
           <button type="button" onClick={onClose} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg"><X size={16} /></button>

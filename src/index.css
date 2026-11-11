@@ -37,3 +37,8 @@
   .report-card { break-after: page; border: none !important; box-shadow: none !important; }
   body { background: #fff !important; }
 }
+
+/* Phones: 16px form text stops iOS Safari zooming in on every tap */
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]), select, textarea { font-size: 16px !important; }
+}

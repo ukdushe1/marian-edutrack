@@ -85,7 +85,7 @@ function NotifyPanel({ student, messageType, detail, onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4"
       onClick={onClose}>
-      <div className="w-full max-w-sm bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-5 space-y-4"
+      <div className="w-full max-w-sm bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-5 space-y-4 max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain"
         onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Notify guardian">
         <div className="flex items-start justify-between gap-3">
           <div>

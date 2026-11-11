@@ -97,7 +97,7 @@ function BoundaryForm({ row, syllabi, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <form onSubmit={save} className="w-full max-w-md bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-5 space-y-3">
+      <form onSubmit={save} className="w-full max-w-md bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-5 space-y-3 max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain">
         <div className="flex items-center justify-between">
           <h2 className="font-semibold">{row ? 'Edit boundaries' : 'Add boundaries'}</h2>
           <button type="button" onClick={onClose} className="p-1"><X size={16} /></button>

@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { onAuth, getUserProfile, getUserRoles, ensureUserProfile } from '../firebase/auth';
 import { effectiveRoles } from '../lib/roles';
 
-const AuthContext = createContext(null);
+export const AuthContext = createContext(null); // exported for the dev layout preview
 
 export function AuthProvider({ children }) {
   const [firebaseUser, setFirebaseUser] = useState(undefined); // undefined = loading

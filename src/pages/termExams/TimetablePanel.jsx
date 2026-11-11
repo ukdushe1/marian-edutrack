@@ -135,7 +135,7 @@ function SeatingPlan({ data, paper, onClose }) {
   const cols = 6;
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 backdrop-blur-sm p-4 overflow-y-auto print:static print:bg-white print:p-0">
-      <div className="w-full max-w-3xl bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-5 my-4 print:shadow-none print:rounded-none">
+      <div className="w-full max-w-3xl bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-5 my-4 print:shadow-none print:rounded-none max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain print:max-h-none print:overflow-visible">
         <div className="flex items-start justify-between print:hidden">
           <h2 className="font-semibold">Seating plan</h2>
           <div className="flex gap-2"><button className={btnGhost} onClick={() => window.print()}>Print</button><button onClick={onClose} className="p-1"><X size={16} /></button></div>
