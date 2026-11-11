@@ -14,11 +14,12 @@ import toast from 'react-hot-toast';
 import { ROLES, normaliseRoles, roleLabel } from '../../lib/roles';
 
 export default function UsersPage() {
-  const { hasRole } = useAuth();
+  const { hasRole, firebaseUser } = useAuth();
   const [users,   setUsers]   = useState([]);
   const [codes,   setCodes]   = useState([]);
   const [search,  setSearch]  = useState('');
   const [editing, setEditing] = useState(null);
+  const [showTest, setShowTest] = useState(true);
 
   useEffect(() => {
     const unsub = onSnapshot(usersCol(), (s) => setUsers(
@@ -30,9 +31,10 @@ export default function UsersPage() {
     return unsub;
   }, []);
 
-  const visible = useMemo(() => users.filter((u) =>
+  const visible = useMemo(() => users.filter((u) => (showTest || !u.testData) &&
     `${u.name} ${u.email} ${(u.roles ?? []).map(roleLabel).join(' ')}`.toLowerCase().includes(search.toLowerCase())),
-  [users, search]);
+  [users, search, showTest]);
+  const testCount = users.filter((u) => u.testData).length;
 
   if (!hasRole('superAdmin')) {
     return <p className="text-sm text-slate-500">Only the Principal or System Admin can manage users.</p>;
@@ -45,9 +47,16 @@ export default function UsersPage() {
       <div>
         <h1 className="text-xl font-bold flex items-center gap-2"><Users size={20} /> Users &amp; roles</h1>
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          {users.length} users{pending > 0 && ` · ${pending} waiting for a role`}. New staff appear here after they first sign in.
+          {users.length - testCount} real users{testCount > 0 && ` + ${testCount} test profiles`}{pending > 0 && ` · ${pending} waiting for a role`}.
+          New staff appear here after they first sign in (Google, or an email account created in the Firebase console).
         </p>
       </div>
+      {testCount > 0 && (
+        <label className="flex items-center gap-2 text-xs text-slate-500">
+          <input type="checkbox" className="accent-brand-600" checked={showTest} onChange={(e) => setShowTest(e.target.checked)} />
+          Show test profiles (made by the test-data loader — they cannot sign in)
+        </label>
+      )}
 
       <div className="relative">
         <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -61,7 +70,11 @@ export default function UsersPage() {
           return (
             <div key={u.id} className="flex items-start gap-3 px-4 py-3">
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold truncate">{u.name ?? 'Unnamed'}</p>
+                <p className="text-sm font-semibold truncate">
+                  {u.name ?? 'Unnamed'}
+                  {u.testData && <span className="ml-2 text-[10px] font-semibold uppercase tracking-wide bg-slate-100 dark:bg-slate-700 text-slate-500 px-1.5 py-0.5 rounded">Test</span>}
+                  {u.id === firebaseUser?.uid && <span className="ml-2 text-[10px] font-semibold uppercase tracking-wide text-brand-600">You</span>}
+                </p>
                 {u.email && <p className="text-xs text-slate-400 truncate">{u.email}</p>}
                 <div className="flex flex-wrap gap-1.5 mt-1">
                   {roles.map((r) => (
