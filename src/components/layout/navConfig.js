@@ -2,7 +2,7 @@ import {
   LayoutGrid, BookOpen, ClipboardList, BarChart2, FileText,
   Users, Bell, GraduationCap, Calendar, Shield,
   BookMarked, Layers, ChevronRight,
-  Target, UserX, CalendarCheck2, BedDouble, Contact, MessageSquareText, ScrollText, ClipboardCheck, ListTodo,
+  Target, UserX, CalendarCheck2, BedDouble, Contact, MessageSquareText, ScrollText, ClipboardCheck, ListTodo, DatabaseBackup,
 } from 'lucide-react';
 
 // Keys are stored role names (see src/lib/roles.js). Legacy "head"/"tutor"
@@ -16,6 +16,7 @@ export const NAV_BY_ROLE = {
     { label: 'Comment bank', path: '/admin/comments',  icon: MessageSquareText },
     { label: 'Imports',      path: '/admin/imports',   icon: ClipboardList },
     { label: 'Audit log',    path: '/admin/audit',     icon: ScrollText },
+    { label: 'Backup',       path: '/admin/backup',    icon: DatabaseBackup },
   ],
   teacher: [
     { label: 'Today',       path: '/',              icon: LayoutGrid },

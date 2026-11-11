@@ -1,4 +1,6 @@
-import { Suspense } from 'react';
+import { Suspense, useEffect, useState } from 'react';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '../../firebase/config';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { LogOut, Moon, Sun, WifiOff } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -15,6 +17,17 @@ export default function AppShell() {
   const online             = useOnlineStatus();
   const nav                = useNavigate();
   const links              = navForRoles(roles);
+  const isAdmin            = roles.includes('superAdmin');
+  const [backupAge, setBackupAge] = useState(null); // days since last backup; Infinity = never
+
+  // Admins: remind when no backup in 7 days (the free plan has no automatic backups)
+  useEffect(() => {
+    if (!isAdmin) return undefined;
+    return onSnapshot(doc(db, 'settings', 'backup'), (d) => {
+      const t = d.exists() ? d.data().lastBackupAt?.toDate?.() : null;
+      setBackupAge(t ? Math.floor((Date.now() - t.getTime()) / 864e5) : Infinity);
+    }, () => {});
+  }, [isAdmin]);
 
   const initials = profile
     ? (profile.name ?? 'U').split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()
@@ -89,6 +102,12 @@ export default function AppShell() {
           </div>
         )}
         <main className="flex-1 overflow-y-auto p-4 md:p-6">
+          {isAdmin && backupAge != null && backupAge >= 7 && (
+            <div className="mb-4 text-sm bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 rounded-xl px-4 py-2.5 flex flex-wrap items-center gap-2 print:hidden">
+              {backupAge === Infinity ? 'No backup has been taken yet.' : `Last backup was ${backupAge} days ago.`}
+              <NavLink to="/admin/backup" className="font-semibold underline">Download a backup</NavLink>
+            </div>
+          )}
           {profile && roles.length === 0 && (
             <div className="mb-4 text-sm bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 rounded-xl px-4 py-3">
               Your account is set up but has no role yet. Ask the Principal to assign your role under <strong>Users</strong>.

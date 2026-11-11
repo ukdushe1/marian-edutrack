@@ -32,6 +32,7 @@ const GuardiansPage = lazy(() => import('./pages/admin/GuardiansPage'));
 const UsersPage = lazy(() => import('./pages/admin/UsersPage'));
 const CommentBankPage = lazy(() => import('./pages/admin/CommentBankPage'));
 const AuditLogPage = lazy(() => import('./pages/admin/AuditLogPage'));
+const BackupPage = lazy(() => import('./pages/admin/BackupPage'));
 const TermExamsHome = lazy(() => import('./pages/termExams/TermExamsHome'));
 const ExamWindowPage = lazy(() => import('./pages/termExams/WindowPage'));
 const ExamMarkingGrid = lazy(() => import('./pages/termExams/MarkingGrid'));
@@ -90,6 +91,7 @@ export default function App() {
               <Route path="admin/users"     element={<UsersPage />} />
               <Route path="admin/comments"  element={<CommentBankPage />} />
               <Route path="admin/audit"     element={<AuditLogPage />} />
+              <Route path="admin/backup"    element={<BackupPage />} />
               <Route path="exams/term"      element={<TermExamsHome />} />
               <Route path="exams/term/:windowId" element={<ExamWindowPage />} />
               <Route path="exams/term/:windowId/mark/:paperId/:groupId" element={<ExamMarkingGrid />} />

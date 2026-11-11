@@ -186,6 +186,12 @@ service cloud.firestore {
       allow read, write: if isStaff();
     }
 
+    // ── settings (e.g. settings/backup: last backup time) ─────────────────
+    match /settings/{id} {
+      allow read:  if isStaff();
+      allow write: if isAdmin();
+    }
+
     // ── end-of-term exam module ───────────────────────────────────────────
     match /examWindows/{id} {
       allow read:   if isStaff();
