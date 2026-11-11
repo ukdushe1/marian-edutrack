@@ -6,6 +6,7 @@ import { logout } from '../../firebase/auth';
 import { navForRoles } from './navConfig';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import clsx from 'clsx';
+import { primaryRoleLabel } from '../../lib/roles';
 
 export default function AppShell() {
   const { profile, roles } = useAuth();
@@ -62,7 +63,7 @@ export default function AppShell() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium truncate">{profile?.name ?? 'User'}</p>
-              <p className="text-xs text-slate-400 truncate">{roles[0] ?? ''}</p>
+              <p className="text-xs text-slate-400 truncate">{primaryRoleLabel(profile?.roles ?? roles)}</p>
             </div>
           </div>
           <div className="flex gap-1">
@@ -87,6 +88,11 @@ export default function AppShell() {
           </div>
         )}
         <main className="flex-1 overflow-y-auto p-4 md:p-6">
+          {profile && roles.length === 0 && (
+            <div className="mb-4 text-sm bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 rounded-xl px-4 py-3">
+              Your account is set up but has no role yet. Ask the Principal to assign your role under <strong>Users</strong>.
+            </div>
+          )}
           <Outlet />
         </main>
 

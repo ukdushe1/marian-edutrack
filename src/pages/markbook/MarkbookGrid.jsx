@@ -12,7 +12,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useAssessments } from '../../hooks/useAssessments';
 import { useStudents } from '../../hooks/useStudents';
 import {
-  marksRef, getDoc, setDoc, now, studentsCol,
+  marksRef, getDoc, setDoc, now, studentsCol, writeAuditLog,
   query, where, getDocs, onSnapshot,
 } from '../../firebase/firestore';
 import { useAuth } from '../../contexts/AuthContext';
@@ -32,7 +32,7 @@ export default function MarkbookGrid({ groupId, group }) {
   const [focusCell, setFocusCell] = useState(null);  // { row, col }
   const [pendingWrites, setPending] = useState({});  // throttled saves
 
-  const isHOD = hasRole('hod', 'head', 'superAdmin');
+  const isHOD = hasRole('hod', 'vicePrincipal', 'superAdmin');
 
   // Load students in this group (chunked — classes can exceed 30)
   const { students } = useStudents(group?.studentIds ?? []);
@@ -51,6 +51,24 @@ export default function MarkbookGrid({ groupId, group }) {
     });
     return () => unsubList.forEach((u) => u());
   }, [assessments, groupId]);
+
+  // Audit: remember a cell's saved value on focus; on blur, log if an existing mark changed
+  const editStart = useRef({});
+  function beginEdit(assessmentId, studentId) {
+    editStart.current[`${assessmentId}:${studentId}`] = marksMap[assessmentId]?.[studentId] ?? null;
+  }
+  function endEdit(assessmentId, studentId) {
+    const key = `${assessmentId}:${studentId}`;
+    const before = editStart.current[key];
+    delete editStart.current[key];
+    const after = marksMap[assessmentId]?.[studentId] ?? null;
+    const had = before && (before.raw != null || before.status);
+    if (!had || JSON.stringify(before) === JSON.stringify(after)) return; // first entry or unchanged
+    writeAuditLog(firebaseUser.uid, 'marks', `teachingGroups/${groupId}/assessments/${assessmentId}`,
+      { studentId, raw: before.raw ?? null, status: before.status ?? null },
+      { studentId, raw: after?.raw ?? null, status: after?.status ?? null },
+    ).catch(() => {});
+  }
 
   // Debounced save for a single cell
   const saveCell = useCallback(async (assessmentId, studentId, value, status) => {
@@ -188,7 +206,8 @@ export default function MarkbookGrid({ groupId, group }) {
                           )}
                           value={displayVal}
                           readOnly={isLocked}
-                          onFocus={() => setFocusCell({ row: si, col: ai })}
+                          onFocus={() => { setFocusCell({ row: si, col: ai }); beginEdit(a.id, s.id); }}
+                          onBlur={() => !isLocked && endEdit(a.id, s.id)}
                           onKeyDown={(e) => handleKeyDown(e, si, ai, ai)}
                           onChange={(e) => !isLocked && handleCellChange(a.id, s.id, e.target.value)}
                         />

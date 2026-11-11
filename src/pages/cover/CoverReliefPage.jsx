@@ -13,6 +13,7 @@ import { doc } from 'firebase/firestore';
 import { UserX, Plus, X, CheckCircle2, User, FileText, Pencil } from 'lucide-react';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
+import { TEACHING_ROLES } from '../../lib/roles';
 import { format, parseISO } from 'date-fns';
 
 const coverCol = () => col('coverRequests');
@@ -109,7 +110,7 @@ export default function CoverReliefPage() {
 
 function CoverForm({ request, staff, onClose }) {
   const editing = !!request;
-  const teachers = staff.filter((u) => (u.roles ?? []).some((r) => ['teacher','hod','head'].includes(r)));
+  const teachers = staff.filter((u) => (u.roles ?? []).some((r) => TEACHING_ROLES.includes(r)));
   const [form, setForm] = useState({
     absentTeacherId: request?.absentTeacherId ?? '',
     coverTeacherId:  request?.coverTeacherId  ?? '',
@@ -171,7 +172,7 @@ function CoverForm({ request, staff, onClose }) {
             </div>
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1">Class / group</label>
+            <label className="block text-xs font-medium text-slate-500 mb-1">Class</label>
             <input value={form.className} onChange={(e) => setForm((p) => ({ ...p, className: e.target.value }))} className={inp} placeholder="e.g. L6A CS" />
           </div>
           <div>

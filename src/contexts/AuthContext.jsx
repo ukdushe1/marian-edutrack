@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { onAuth, getUserProfile, getUserRoles } from '../firebase/auth';
+import { onAuth, getUserProfile, getUserRoles, ensureUserProfile } from '../firebase/auth';
+import { effectiveRoles } from '../lib/roles';
 
 const AuthContext = createContext(null);
 
@@ -12,9 +13,11 @@ export function AuthProvider({ children }) {
     const unsub = onAuth(async (user) => {
       setFirebaseUser(user);
       if (user) {
-        const [prof, r] = await Promise.all([getUserProfile(user.uid), getUserRoles(user)]);
+        let [prof, r] = await Promise.all([getUserProfile(user.uid), getUserRoles(user)]);
+        // First sign-in: create an empty profile so the Principal can assign roles in Users
+        if (!prof) prof = await ensureUserProfile(user).catch(() => null);
         setProfile(prof);
-        setRoles(r);
+        setRoles(effectiveRoles(r)); // legacy names mapped; principal implies admin powers
       } else {
         setProfile(null);
         setRoles([]);

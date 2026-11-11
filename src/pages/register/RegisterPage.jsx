@@ -148,7 +148,7 @@ export default function RegisterPage() {
       {/* Controls */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         <div>
-          <label className="block text-xs text-slate-500 mb-1">Group</label>
+          <label className="block text-xs text-slate-500 mb-1">Class</label>
           <select value={groupId || group?.id || ''} onChange={(e) => setGroupId(e.target.value)}
             className="w-full text-sm border border-slate-300 dark:border-slate-600 rounded-lg px-2.5 py-1.5 bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
             {groups.map((g) => <option key={g.id} value={g.id}>{g.syllabusCode ?? g.name}</option>)}
@@ -164,7 +164,7 @@ export default function RegisterPage() {
           <select value={period} onChange={(e) => setPeriod(e.target.value)}
             className="w-full text-sm border border-slate-300 dark:border-slate-600 rounded-lg px-2.5 py-1.5 bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
             {['Tutor', '1', '2', '3', '4', '5', '6', '7', '8'].map((p) => (
-              <option key={p} value={p}>{p}</option>
+              <option key={p} value={p}>{p === 'Tutor' ? 'Roll call' : `Period ${p}`}</option>
             ))}
           </select>
         </div>
@@ -198,7 +198,7 @@ export default function RegisterPage() {
       {/* Student list */}
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 divide-y divide-slate-100 dark:divide-slate-700/50">
         {students.length === 0 && (
-          <p className="text-center py-8 text-sm text-slate-400">No students found in this group.</p>
+          <p className="text-center py-8 text-sm text-slate-400">No students found in this class.</p>
         )}
         {students.map((s, i) => {
           const status = entries[s.id] ?? 'P';

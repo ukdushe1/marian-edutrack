@@ -98,7 +98,7 @@ export default function BookingsPage() {
             <tr>
               <th className="px-3 py-2 text-left">Period</th>
               <th className="px-3 py-2 text-left">Resource</th>
-              <th className="px-3 py-2 text-left">Group</th>
+              <th className="px-3 py-2 text-left">Class</th>
               <th className="px-3 py-2 text-left">Booked by</th>
               <th className="px-3 py-2"/>
             </tr>
@@ -199,7 +199,7 @@ function BookingForm({ resources, bookings, bookedBy, bookedByName, isClash, onC
             </div>
           )}
           <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1">Class / group</label>
+            <label className="block text-xs font-medium text-slate-500 mb-1">Class</label>
             <input value={form.groupName} onChange={(e) => setForm((p) => ({ ...p, groupName: e.target.value }))} className={inp} placeholder="e.g. L6A CS" />
           </div>
           <div>

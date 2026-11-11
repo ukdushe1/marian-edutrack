@@ -116,7 +116,7 @@ export default function SchemesPage() {
         {!entries.length && selGroup && (
           <div className="text-center py-14 text-slate-400 text-sm">
             <Layers size={28} className="mx-auto mb-2 opacity-30"/>
-            No entries yet for this group.
+            No entries yet for this class.
           </div>
         )}
       </div>

@@ -1,5 +1,5 @@
 /**
- * Head / deputy — approvals dashboard — Phase 2.
+ * Principal / Vice Principal — approvals dashboard — Phase 2.
  * Shows reports awaiting approval, with approve/reject actions.
  * Also shows pending cover requests and open exam clashes.
  */

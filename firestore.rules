@@ -7,7 +7,7 @@ service cloud.firestore {
     function uid()              { return request.auth.uid; }
     function claims()           { return request.auth.token; }
     // Roles come from custom claims when set (by Admin SDK / Cloud Functions);
-    // otherwise from users/{uid}.roles, which only superAdmins can write.
+    // otherwise from users/{uid}.roles, which only the Principal / System Admin can write.
     function userDocPath()      { return /databases/$(database)/documents/users/$(uid()); }
     function roles() {
       return claims().get('roles', null) != null ? claims().roles
@@ -15,22 +15,51 @@ service cloud.firestore {
            : [];
     }
     function hasRole(r)         { return isSignedIn() && r in roles(); }
-    function isStaff()          { return isSignedIn() && (hasRole('teacher') || hasRole('tutor') || hasRole('hod') || hasRole('head') || hasRole('examsOfficer') || hasRole('boardingMaster') || hasRole('superAdmin')); }
-    function isAdmin()          { return isSignedIn() && hasRole('superAdmin'); }
-    function isHead()           { return isSignedIn() && (hasRole('head') || hasRole('superAdmin')); }
-    function isHOD()            { return isSignedIn() && (hasRole('hod') || hasRole('head') || hasRole('superAdmin')); }
-    function isExams()          { return isSignedIn() && (hasRole('examsOfficer') || hasRole('head') || hasRole('superAdmin')); }
-    function isBoarding()       { return isSignedIn() && (hasRole('boardingMaster') || hasRole('head') || hasRole('superAdmin')); }
+    // Role names (see src/lib/roles.js). Legacy aliases still accepted:
+    //   head  = vicePrincipal (old "Head / Deputy")   tutor = classTeacher (old "Form Tutor")
+    // The Principal has full administrator rights.
+    function isAdmin()          { return hasRole('superAdmin') || hasRole('principal'); }
+    function isSenior()         { return isAdmin() || hasRole('vicePrincipal') || hasRole('head'); }
+    function isHead()           { return isSenior(); }   // report approval / publishing
+    function isHOD()            { return isSenior() || hasRole('hod'); }
+    function isExams()          { return isSenior() || hasRole('examsOfficer'); }
+    function isBoarding()       { return isSenior() || hasRole('boardingMaster'); }
+    function isStaff()          { return isHOD() || hasRole('teacher') || hasRole('classTeacher') || hasRole('tutor')
+                                    || hasRole('examsOfficer') || hasRole('boardingMaster'); }
+    // Subjects (syllabus codes) a HOD is responsible for, from their user profile
+    function hodSubjects()      { return exists(userDocPath()) ? get(userDocPath()).data.get('hodSubjects', []) : []; }
+    function hodOf(code)        { return hasRole('hod') && code in hodSubjects(); }
     function onlyChanges(keys)  { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys); }
 
     // ── users ─────────────────────────────────────────────────────────────
     match /users/{userId} {
-      allow read:  if isSignedIn() && (uid() == userId || isStaff());
-      allow write: if isAdmin();
+      allow read:   if isSignedIn() && (uid() == userId || isStaff());
+      // First sign-in: a person may create their own profile, but with no roles
+      allow create: if isAdmin() || (isSignedIn() && uid() == userId
+                      && request.resource.data.get('roles', []).size() == 0
+                      && !('hodSubjects' in request.resource.data));
+      // Roles and HOD subjects are assigned only by the Principal / System Admin
+      allow update, delete: if isAdmin();
     }
 
-    // ── syllabi (read-all staff, write admin) ─────────────────────────────
-    match /syllabi/{id}         { allow read: if isStaff(); allow write: if isAdmin(); }
+    // ── syllabi: all staff read; HOD of that subject or Principal/Admin write ─
+    match /syllabi/{id} {
+      allow read:   if isStaff();
+      allow create: if isAdmin() || hodOf(request.resource.data.code);
+      allow update: if isAdmin() || (hodOf(resource.data.code) && hodOf(request.resource.data.code));
+      allow delete: if isAdmin() || hodOf(resource.data.code);
+    }
+
+    // ── comment bank: all staff read; HOD (own subjects or general) and seniors write ─
+    match /commentBank/{id} {
+      allow read:   if isStaff();
+      allow create: if isSenior() || (hasRole('hod') &&
+                      (request.resource.data.subject == '' || hodOf(request.resource.data.subject)));
+      allow update: if isSenior() || (hasRole('hod') &&
+                      (resource.data.subject == '' || hodOf(resource.data.subject)) &&
+                      (request.resource.data.subject == '' || hodOf(request.resource.data.subject)));
+      allow delete: if isAdmin();
+    }
     match /gradeBoundaries/{id} { allow read: if isStaff(); allow write: if isAdmin(); }
     match /gradingScales/{id}   { allow read: if isStaff(); allow write: if isAdmin(); }
 
@@ -77,9 +106,13 @@ service cloud.firestore {
     match /reports/{id} {
       allow read: if isStaff() || (isSignedIn() && hasRole('parent') &&
         resource.data.status == 'published' && resource.data.guardianIds.hasAny([uid()]));
-      allow write: if isStaff();
-      // Only head can set status = 'published'
-      allow update: if resource.data.status != 'published' || isHead();
+      allow create: if isHead() || (isStaff() && !(request.resource.data.status in ['approved', 'published']));
+      // Staff edit drafts and reviewed reports; only Principal / Vice Principal
+      // approve, publish, or touch an approved/published report.
+      allow update: if isHead() || (isStaff()
+                      && !(resource.data.status in ['approved', 'published'])
+                      && !(request.resource.data.status in ['approved', 'published']));
+      allow delete: if isAdmin();
     }
 
     // ── conduct ───────────────────────────────────────────────────────────
@@ -92,7 +125,7 @@ service cloud.firestore {
     // ── audit log — append-only ───────────────────────────────────────────
     match /auditLog/{id} {
       allow read:   if isAdmin();
-      allow create: if isStaff();
+      allow create: if isStaff() && request.resource.data.who == uid();
       allow update, delete: if false;
     }
 

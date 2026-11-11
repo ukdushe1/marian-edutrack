@@ -61,7 +61,7 @@ export default function HodMarksPage() {
         <h1 className="text-xl font-bold">Department marks</h1>
       </div>
       <p className="text-sm text-slate-500 dark:text-slate-400">
-        View all groups in your department. Lock assessments to prevent further changes.
+        View all classes in your department. Lock assessments to prevent further changes.
       </p>
 
       <div className="space-y-2">
@@ -132,7 +132,7 @@ export default function HodMarksPage() {
           );
         })}
         {!groups.length && (
-          <div className="text-center py-14 text-slate-400 text-sm">No teaching groups found.</div>
+          <div className="text-center py-14 text-slate-400 text-sm">No classes found.</div>
         )}
       </div>
     </div>

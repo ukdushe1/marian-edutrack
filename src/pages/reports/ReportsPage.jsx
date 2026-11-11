@@ -23,6 +23,8 @@ import {
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
 import NotifyGuardianButton from '../../components/NotifyGuardianButton';
+import CommentPicker from '../../components/CommentPicker';
+import { useCommentBank } from '../../lib/commentBank';
 
 const STATUS_ORDER = ['draft', 'reviewed', 'approved', 'published'];
 const STATUS_META  = {
@@ -36,6 +38,7 @@ export default function ReportsPage() {
   const { firebaseUser, hasRole } = useAuth();
   const { groups }                = useTeachingGroups();
   const { term }                  = useCurrentTerm();
+  const commentBank               = useCommentBank();
 
   const [groupId,   setGroupId]   = useState('');
   const [reports,   setReports]   = useState({});  // { studentId: reportDoc }
@@ -45,8 +48,8 @@ export default function ReportsPage() {
   const group    = groups.find((g) => g.id === groupId) ?? groups[0];
   const { students } = useStudents(group?.studentIds ?? []);
 
-  const isHead   = hasRole('head', 'superAdmin');
-  const isTutor  = hasRole('tutor', 'head', 'superAdmin');
+  const isHead   = hasRole('vicePrincipal', 'superAdmin');                 // Principal implies both
+  const isTutor  = hasRole('classTeacher', 'vicePrincipal', 'superAdmin');
 
   // Load reports for this group + term
   useEffect(() => {
@@ -90,8 +93,8 @@ export default function ReportsPage() {
     const idx     = STATUS_ORDER.indexOf(r.status);
     const next    = STATUS_ORDER[idx + 1];
     if (!next) return;
-    if (next === 'approved' && !isHead) { toast.error('Only the head can approve reports.'); return; }
-    if (next === 'published' && !isHead) { toast.error('Only the head can publish reports.'); return; }
+    if (next === 'approved' && !isHead) { toast.error('Only the Principal or Vice Principal can approve reports.'); return; }
+    if (next === 'published' && !isHead) { toast.error('Only the Principal or Vice Principal can publish reports.'); return; }
     setBusy(studentId + 'adv');
     try {
       await updateDoc(doc(db, 'reports', r.id), {
@@ -189,25 +192,27 @@ export default function ReportsPage() {
                   {/* Subject comment */}
                   <CommentField
                     label="Subject comment"
+                    picker={{ comments: commentBank, subject: group?.syllabusCode ?? '', student: s }}
                     value={report?.subjectComment ?? ''}
                     readOnly={status === 'published'}
                     onSave={(v) => saveComment(s.id, 'subjectComment', v)}
                     busy={busy === s.id + 'subjectComment'}
                   />
-                  {/* Tutor comment */}
+                  {/* Class teacher comment */}
                   {isTutor && (
                     <CommentField
-                      label="Tutor comment"
+                      label="Class teacher comment"
+                      picker={{ comments: commentBank, subject: '', student: s }}
                       value={report?.tutorComment ?? ''}
                       readOnly={status === 'published'}
                       onSave={(v) => saveComment(s.id, 'tutorComment', v)}
                       busy={busy === s.id + 'tutorComment'}
                     />
                   )}
-                  {/* Head comment */}
+                  {/* Principal / Vice Principal comment */}
                   {isHead && (
                     <CommentField
-                      label="Head's comment"
+                      label="Principal's comment"
                       value={report?.headComment ?? ''}
                       readOnly={status === 'published'}
                       onSave={(v) => saveComment(s.id, 'headComment', v)}
@@ -245,14 +250,14 @@ export default function ReportsPage() {
           );
         })}
         {!students.length && (
-          <div className="text-center py-12 text-slate-400 text-sm">No students in this group yet.</div>
+          <div className="text-center py-12 text-slate-400 text-sm">No students in this class yet.</div>
         )}
       </div>
     </div>
   );
 }
 
-function CommentField({ label, value, onSave, readOnly, busy }) {
+function CommentField({ label, value, onSave, readOnly, busy, picker }) {
   const [local, setLocal]   = useState(value);
   const [dirty, setDirty]   = useState(false);
 
@@ -261,6 +266,13 @@ function CommentField({ label, value, onSave, readOnly, busy }) {
   return (
     <div>
       <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">{label}</label>
+      {picker && !readOnly && (
+        <CommentPicker {...picker} onPick={(text) => {
+          // Add the preset to what's there; teachers can still edit or type their own
+          setLocal((prev) => (prev.trim() ? `${prev.trim()} ${text}` : text));
+          setDirty(true);
+        }} />
+      )}
       <textarea
         value={local}
         readOnly={readOnly}

@@ -16,10 +16,11 @@ import {
 } from 'lucide-react';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
+import { TEACHING_ROLES } from '../../lib/roles';
 import { format, parseISO, addMinutes, isWithinInterval } from 'date-fns';
 
 const sessionsCol  = () => col('examSessions');
-const invigilators = (users) => users.filter((u) => (u.roles ?? []).some((r) => ['teacher','hod','head','examsOfficer'].includes(r)));
+const invigilators = (users) => users.filter((u) => (u.roles ?? []).some((r) => [...TEACHING_ROLES, 'examsOfficer'].includes(r)));
 
 export default function ExamTimetablePage() {
   const { firebaseUser } = useAuth();
@@ -213,7 +214,7 @@ function SessionForm({ session, syllabi, staff, onClose }) {
   }
 
   const inp = 'w-full text-sm border border-slate-300 dark:border-slate-600 rounded-lg px-2.5 py-1.5 bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500';
-  const invigList = staff.filter((u) => (u.roles ?? []).some((r) => ['teacher','hod','head','examsOfficer'].includes(r)));
+  const invigList = staff.filter((u) => (u.roles ?? []).some((r) => [...TEACHING_ROLES, 'examsOfficer'].includes(r)));
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4 overflow-y-auto">

@@ -1,18 +1,35 @@
 /**
- * Admin — Syllabi management.
- * Super admin can create/edit syllabi with components, weights, and topics.
+ * Syllabi.
+ * Principal / System Admin: create, edit and delete any syllabus.
+ * HOD: create, edit and delete syllabi for the subjects (codes) on their profile.
+ * Everyone else: read-only. firestore.rules enforces the same.
  */
 import { useState, useEffect } from 'react';
-import { syllabiCol, addDoc, updateDoc, onSnapshot, now, ref } from '../../firebase/firestore';
+import { syllabiCol, addDoc, updateDoc, deleteDoc, onSnapshot, now } from '../../firebase/firestore';
+import { useAuth } from '../../contexts/AuthContext';
 import { db } from '../../firebase/config';
 import { doc } from 'firebase/firestore';
-import { BookMarked, Plus, X, ChevronDown, ChevronUp, Pencil } from 'lucide-react';
+import { BookMarked, Plus, X, ChevronDown, ChevronUp, Pencil, Lock } from 'lucide-react';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
 
 const LEVELS = ['IGCSE', 'AS Level', 'A Level', 'Lower School'];
 
+/** Who may change which syllabus — mirrors firestore.rules. */
+export function useSyllabusPermissions() {
+  const { hasRole, profile } = useAuth();
+  const isAdmin  = hasRole('superAdmin'); // Principal implies superAdmin
+  const subjects = hasRole('hod') ? (profile?.hodSubjects ?? []) : [];
+  return {
+    isAdmin,
+    subjects,
+    canCreate: isAdmin || subjects.length > 0,
+    canEdit:   (s) => isAdmin || subjects.includes(s?.code),
+  };
+}
+
 export default function SyllabiPage() {
+  const perms = useSyllabusPermissions();
   const [syllabi,  setSyllabi]  = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editing,  setEditing]  = useState(null);
@@ -27,11 +44,18 @@ export default function SyllabiPage() {
   return (
     <div className="max-w-2xl space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-bold flex items-center gap-2"><BookMarked size={20}/> Syllabi</h1>
-        <button onClick={() => { setEditing(null); setShowForm(true); }}
+        <div>
+          <h1 className="text-xl font-bold flex items-center gap-2"><BookMarked size={20}/> Syllabi</h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            {perms.isAdmin ? 'You can manage every syllabus.'
+              : perms.subjects.length ? `You manage: ${perms.subjects.join(', ')}. Other subjects are read-only.`
+              : 'Read-only. Each subject’s syllabus is managed by its Head of Department.'}
+          </p>
+        </div>
+        {perms.canCreate && <button onClick={() => { setEditing(null); setShowForm(true); }}
           className="flex items-center gap-1.5 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium px-3 py-2 rounded-lg transition-colors">
           <Plus size={15}/> New syllabus
-        </button>
+        </button>}
       </div>
 
       <div className="space-y-2">
@@ -43,10 +67,15 @@ export default function SyllabiPage() {
                 <p className="font-semibold text-sm">{s.code} — {s.name ?? s.code}</p>
                 <p className="text-xs text-slate-400">{s.level} · {s.components?.length ?? 0} components · {s.topics?.length ?? 0} topics</p>
               </div>
-              <button onClick={(e) => { e.stopPropagation(); setEditing(s); setShowForm(true); }}
-                className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg text-slate-400">
-                <Pencil size={13}/>
-              </button>
+              {perms.canEdit(s) ? (
+                <button onClick={(e) => { e.stopPropagation(); setEditing(s); setShowForm(true); }}
+                  aria-label={`Edit ${s.code}`}
+                  className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg text-slate-400">
+                  <Pencil size={13}/>
+                </button>
+              ) : (
+                <Lock size={13} className="text-slate-300 dark:text-slate-600" aria-label="Read-only" />
+              )}
               {expanded === s.id ? <ChevronUp size={15} className="text-slate-400"/> : <ChevronDown size={15} className="text-slate-400"/>}
             </button>
             {expanded === s.id && (
@@ -57,7 +86,7 @@ export default function SyllabiPage() {
                     <div className="space-y-1">
                       {s.components.map((c, i) => (
                         <div key={i} className="flex justify-between text-sm">
-                          <span>{c.paper}</span>
+                          <span>{c.paper ?? c.name}</span>
                           <span className="text-slate-500">{c.weight}% · max {c.maxMark}</span>
                         </div>
                       ))}
@@ -83,12 +112,13 @@ export default function SyllabiPage() {
         )}
       </div>
 
-      {showForm && <SyllabusForm syllabus={editing} onClose={() => setShowForm(false)} />}
+      {showForm && <SyllabusForm syllabus={editing} perms={perms} onClose={() => setShowForm(false)} />}
     </div>
   );
 }
 
-function SyllabusForm({ syllabus, onClose }) {
+function SyllabusForm({ syllabus, perms, onClose }) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const editing = !!syllabus;
   const [form, setForm] = useState({
     code:       syllabus?.code       ?? '',
@@ -116,6 +146,10 @@ function SyllabusForm({ syllabus, onClose }) {
 
   async function submit(e) {
     e.preventDefault();
+    if (!perms.isAdmin && !perms.subjects.includes(form.code.trim())) {
+      toast.error(`You can only manage ${perms.subjects.join(', ')}.`);
+      return;
+    }
     setBusy(true);
     try {
       if (editing) {
@@ -126,6 +160,15 @@ function SyllabusForm({ syllabus, onClose }) {
       toast.success(editing ? 'Syllabus updated.' : 'Syllabus created.');
       onClose();
     } catch { toast.error('Save failed.'); setBusy(false); }
+  }
+
+  async function remove() {
+    setBusy(true);
+    try {
+      await deleteDoc(doc(db, 'syllabi', syllabus.id));
+      toast.success('Syllabus deleted.');
+      onClose();
+    } catch { toast.error('Delete failed.'); setBusy(false); }
   }
 
   const inp = 'w-full text-sm border border-slate-300 dark:border-slate-600 rounded-lg px-2.5 py-1.5 bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500';
@@ -141,7 +184,14 @@ function SyllabusForm({ syllabus, onClose }) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-slate-500 mb-1">Code</label>
-              <input required value={form.code} onChange={(e) => setForm((p) => ({ ...p, code: e.target.value }))} className={inp} placeholder="e.g. 0478" />
+              {perms.isAdmin ? (
+                <input required value={form.code} onChange={(e) => setForm((p) => ({ ...p, code: e.target.value }))} className={inp} placeholder="e.g. 0478" />
+              ) : (
+                <select required value={form.code} onChange={(e) => setForm((p) => ({ ...p, code: e.target.value }))} className={inp}>
+                  <option value="">Choose…</option>
+                  {perms.subjects.map((c) => <option key={c}>{c}</option>)}
+                </select>
+              )}
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-500 mb-1">Level</label>
@@ -196,6 +246,15 @@ function SyllabusForm({ syllabus, onClose }) {
             className="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-60 text-white rounded-lg py-2 text-sm font-medium transition-colors">
             {busy ? 'Saving…' : 'Save syllabus'}
           </button>
+          {editing && (confirmDelete ? (
+            <div className="flex items-center gap-2 text-sm">
+              <span className="flex-1 text-red-600">Delete {syllabus.code}? Classes using it keep their data.</span>
+              <button type="button" onClick={() => setConfirmDelete(false)} className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700">Cancel</button>
+              <button type="button" onClick={remove} disabled={busy} className="px-3 py-1.5 rounded-lg bg-red-600 text-white">Delete</button>
+            </div>
+          ) : (
+            <button type="button" onClick={() => setConfirmDelete(true)} className="w-full text-xs text-slate-400 hover:text-red-600">Delete syllabus</button>
+          ))}
         </form>
       </div>
     </div>

@@ -17,7 +17,7 @@ export default function MarkbookPage() {
 
   if (!groups.length) return (
     <div className="text-center py-16 text-slate-500">
-      No teaching groups found. Contact your admin to be assigned to a group.
+      No classes found. Ask the Principal to assign you to a class.
     </div>
   );
 

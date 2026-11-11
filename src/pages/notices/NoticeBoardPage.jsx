@@ -34,7 +34,7 @@ export default function NoticeBoardPage() {
     } catch { toast.error('Could not mark as read.'); }
   }
 
-  const canPost = hasRole('head', 'superAdmin', 'hod');
+  const canPost = hasRole('vicePrincipal', 'superAdmin', 'hod');
 
   return (
     <div className="max-w-2xl space-y-4">

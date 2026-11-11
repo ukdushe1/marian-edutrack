@@ -6,7 +6,7 @@ import {
   onAuthStateChanged,
   sendPasswordResetEmail,
 } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from './config';
 
 const googleProvider = new GoogleAuthProvider();
@@ -40,4 +40,16 @@ export async function getUserRoles(firebaseUser) {
   // Fallback for local dev when Cloud Functions haven't been deployed yet.
   const profile = await getUserProfile(firebaseUser.uid);
   return profile?.roles ?? [];
+}
+
+/** Create the user's own profile with no roles (rules allow only this shape). */
+export async function ensureUserProfile(firebaseUser) {
+  const profile = {
+    name:      firebaseUser.displayName || firebaseUser.email || 'New user',
+    email:     firebaseUser.email || '',
+    roles:     [],
+    createdAt: serverTimestamp(),
+  };
+  await setDoc(doc(db, 'users', firebaseUser.uid), profile);
+  return profile;
 }

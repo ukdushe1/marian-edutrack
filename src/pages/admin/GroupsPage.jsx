@@ -1,5 +1,5 @@
 /**
- * Admin — Teaching groups.
+ * Admin — Classes (stored as teachingGroups).
  * Create groups, assign syllabus, teachers and students.
  */
 import { useState, useEffect } from 'react';
@@ -12,6 +12,7 @@ import { doc } from 'firebase/firestore';
 import { Layers, Plus, X, ChevronDown, ChevronUp, Pencil } from 'lucide-react';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
+import { TEACHING_ROLES } from '../../lib/roles';
 
 export default function GroupsPage() {
   const [groups,   setGroups]   = useState([]);
@@ -26,17 +27,17 @@ export default function GroupsPage() {
     const unsubG = onSnapshot(teachingGroupsCol(), (s) => setGroups(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
     getDocs(syllabiCol()).then((s) => setSyllabi(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
     getDocs(studentsCol()).then((s) => setStudents(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
-    getDocs(usersCol()).then((s) => setTeachers(s.docs.map((d) => ({ id: d.id, ...d.data() })).filter((u) => (u.roles ?? []).includes('teacher') || (u.roles ?? []).includes('hod'))));
+    getDocs(usersCol()).then((s) => setTeachers(s.docs.map((d) => ({ id: d.id, ...d.data() })).filter((u) => (u.roles ?? []).some((r) => TEACHING_ROLES.includes(r)))));
     return unsubG;
   }, []);
 
   return (
     <div className="max-w-2xl space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-bold flex items-center gap-2"><Layers size={20}/> Teaching groups</h1>
+        <h1 className="text-xl font-bold flex items-center gap-2"><Layers size={20}/> Classes</h1>
         <button onClick={() => { setEditing(null); setShowForm(true); }}
           className="flex items-center gap-1.5 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium px-3 py-2 rounded-lg transition-colors">
-          <Plus size={15}/> New group
+          <Plus size={15}/> New class
         </button>
       </div>
 
@@ -74,7 +75,7 @@ export default function GroupsPage() {
             </div>
           );
         })}
-        {!groups.length && <div className="text-center py-12 text-slate-400 text-sm">No teaching groups yet.</div>}
+        {!groups.length && <div className="text-center py-12 text-slate-400 text-sm">No classes yet.</div>}
       </div>
 
       {showForm && <GroupForm group={editing} syllabi={syllabi} students={students} teachers={teachers} onClose={() => setShowForm(false)} />}
@@ -117,7 +118,7 @@ function GroupForm({ group, syllabi, students, teachers, onClose }) {
       } else {
         await addDoc(teachingGroupsCol(), { ...form, createdAt: now() });
       }
-      toast.success(editing ? 'Group updated.' : 'Group created.');
+      toast.success(editing ? 'Class updated.' : 'Class created.');
       onClose();
     } catch { toast.error('Save failed.'); setBusy(false); }
   }
@@ -129,13 +130,13 @@ function GroupForm({ group, syllabi, students, teachers, onClose }) {
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4 overflow-y-auto">
       <div className="w-full max-w-md bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-5 my-4">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-semibold">{editing ? 'Edit group' : 'New teaching group'}</h2>
+          <h2 className="font-semibold">{editing ? 'Edit class' : 'New class'}</h2>
           <button onClick={onClose} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg"><X size={16}/></button>
         </div>
         <form onSubmit={submit} className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-slate-500 mb-1">Group name</label>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Class name</label>
               <input value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} className={inp} placeholder="e.g. L6A CS" />
             </div>
             <div>
@@ -181,7 +182,7 @@ function GroupForm({ group, syllabi, students, teachers, onClose }) {
 
           <button type="submit" disabled={busy}
             className="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-60 text-white rounded-lg py-2 text-sm font-medium transition-colors">
-            {busy ? 'Saving…' : 'Save group'}
+            {busy ? 'Saving…' : 'Save class'}
           </button>
         </form>
       </div>

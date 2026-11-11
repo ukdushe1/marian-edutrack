@@ -26,6 +26,9 @@ import HodMarksPage        from './pages/hod/HodMarksPage';
 import HeadApprovalsPage   from './pages/head/HeadApprovalsPage';
 import BoardingPage        from './pages/boarding/BoardingPage';
 import GuardiansPage       from './pages/admin/GuardiansPage';
+import UsersPage           from './pages/admin/UsersPage';
+import CommentBankPage     from './pages/admin/CommentBankPage';
+import AuditLogPage        from './pages/admin/AuditLogPage';
 
 function RequireAuth({ children }) {
   const { firebaseUser, loading } = useAuth();
@@ -77,6 +80,9 @@ export default function App() {
               <Route path="admin/syllabi"  element={<SyllabiPage />} />
               <Route path="admin/groups"   element={<GroupsPage />} />
               <Route path="admin/guardians" element={<GuardiansPage />} />
+              <Route path="admin/users"     element={<UsersPage />} />
+              <Route path="admin/comments"  element={<CommentBankPage />} />
+              <Route path="admin/audit"     element={<AuditLogPage />} />
               <Route path="hod/marks"           element={<HodMarksPage />} />
               <Route path="hod/schemes"         element={<SchemesPage />} />
               <Route path="head/approve"        element={<HeadApprovalsPage />} />

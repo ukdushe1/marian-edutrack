@@ -162,7 +162,7 @@ export default function PredictionsPage() {
                 );
               })}
               {!students.length && (
-                <tr><td colSpan={6} className="px-3 py-10 text-center text-slate-400">No students in this group.</td></tr>
+                <tr><td colSpan={6} className="px-3 py-10 text-center text-slate-400">No students in this class.</td></tr>
               )}
             </tbody>
           </table>

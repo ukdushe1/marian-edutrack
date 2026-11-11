@@ -94,7 +94,7 @@ export default function Dashboard() {
       {/* Groups summary */}
       {groups.length > 0 && (
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
-          <h2 className="font-semibold mb-3 text-sm">Your teaching groups</h2>
+          <h2 className="font-semibold mb-3 text-sm">Your classes</h2>
           <div className="space-y-1">
             {groups.map((g) => (
               <Link key={g.id} to={`/markbook`}

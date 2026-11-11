@@ -55,16 +55,32 @@ const COLLECTIONS = [
   'students', 'classes', 'terms', 'syllabi', 'teachingGroups', 'registers', 'reports',
   'conduct', 'notices', 'guardians', 'predictions', 'resources', 'resourceBookings',
   'coverRequests', 'examSessions', 'cambridgeEntries', 'exeats', 'houseRollCall', 'sickBay',
-  'users', 'gradingScales', 'gradeBoundaries',
+  'users', 'gradingScales', 'gradeBoundaries', 'commentBank',
 ];
 
 // Invented staff (profiles only — they cannot sign in)
 const STAFF = [
   ['staff1', 'Mr T. Moyo',      ['teacher']],
-  ['staff2', 'Mrs R. Chikore',  ['teacher', 'tutor']],
-  ['staff3', 'Mr K. Dube',      ['hod', 'teacher']],
+  ['staff2', 'Mrs R. Chikore',  ['teacher', 'classTeacher']],
+  ['staff3', 'Mr K. Dube',      ['hod', 'teacher'], ['4005']],   // HOD of the test subject
   ['staff4', 'Ms P. Ncube',     ['examsOfficer']],
   ['staff5', 'Mr S. Banda',     ['boardingMaster']],
+  ['staff6', 'Mrs F. Sibanda',  ['vicePrincipal']],
+];
+
+// Preset report comments: [category, subject ('' = general), text]
+const COMMENTS = [
+  ['excellent', '', '{name} has produced excellent work this term and is a role model to others.'],
+  ['excellent', '', 'Outstanding effort and results. Well done, {name}.'],
+  ['good', '', '{name} has worked consistently this term. Keep it up.'],
+  ['good', '', 'A good term. {name} participates well in class.'],
+  ['satisfactory', '', '{name} is making steady progress. More revision of weaker topics will help.'],
+  ['satisfactory', '', 'Satisfactory work. {name} should aim to complete all homework on time.'],
+  ['needsImprovement', '', '{name} needs to focus more in class and prepare thoroughly for tests.'],
+  ['needsImprovement', '', 'Attendance and effort must improve if {name} is to reach their potential.'],
+  ['excellent', '4005', '{name} shows a strong grasp of scientific concepts and excellent practical skills.'],
+  ['good', '4005', '{name} writes up practicals carefully and applies formulae well.'],
+  ['needsImprovement', '4005', '{name} should revise electricity and forces before the next test.'],
 ];
 const staffId = (k) => `${P}${k}`;
 
@@ -112,8 +128,8 @@ export function buildTestDocs({ uid, userName = 'Test Teacher', testNumber = nul
   put(`syllabi/${SYL_ID}`, {
     code: '4005', name: 'Combined Science (test)', level: 'O Level',
     components: [
-      { name: 'Class exercises', weight: 30, maxMark: 10 },
-      { name: 'Tests',           weight: 70, maxMark: 20 },
+      { paper: 'Class exercises', weight: 30, maxMark: 10 },
+      { paper: 'Tests',           weight: 70, maxMark: 20 },
     ],
     topics: [
       { id: 't1', name: 'Cells and organisation' },
@@ -135,8 +151,14 @@ export function buildTestDocs({ uid, userName = 'Test Teacher', testNumber = nul
     });
   });
 
-  STAFF.forEach(([k, name, roles]) => {
-    put(`users/${staffId(k)}`, { name, roles, email: '', createdAt: ts });
+  STAFF.forEach(([k, name, roles, hodSubjects]) => {
+    put(`users/${staffId(k)}`, { name, roles, ...(hodSubjects ? { hodSubjects } : {}), email: '', createdAt: ts });
+  });
+
+  COMMENTS.forEach(([category, subject, text], k) => {
+    put(`commentBank/${P}cb${String(k + 1).padStart(2, '0')}`, {
+      text, category, subject, active: true, createdBy: uid, createdAt: ts, updatedAt: ts,
+    });
   });
 
   put(`gradingScales/${P}scale`, {
