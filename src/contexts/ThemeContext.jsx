@@ -9,7 +9,7 @@ export function ThemeProvider({ children }) {
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', dark);
-    try { localStorage.setItem('theme', dark ? 'dark' : 'light'); } catch {}
+    try { localStorage.setItem('theme', dark ? 'dark' : 'light'); } catch { /* storage blocked — theme just won't persist */ }
   }, [dark]);
 
   return (

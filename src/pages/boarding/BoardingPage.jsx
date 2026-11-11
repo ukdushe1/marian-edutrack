@@ -4,7 +4,6 @@
  * Only shown if school has boarders (feature flag: Firestore 'config/boarding' exists).
  */
 import { useState, useEffect } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
 import {
   col, addDoc, updateDoc, onSnapshot, query, orderBy, now, getDocs, studentsCol,
 } from '../../firebase/firestore';

@@ -4,13 +4,12 @@
  * Also shows pending cover requests and open exam clashes.
  */
 import { useState, useEffect } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
 import {
   col, onSnapshot, query, where, orderBy, updateDoc, now, getDocs, teachingGroupsCol,
 } from '../../firebase/firestore';
 import { db } from '../../firebase/config';
 import { doc } from 'firebase/firestore';
-import { FileText, CheckCircle2, XCircle, Clock, ChevronRight, AlertTriangle } from 'lucide-react';
+import { FileText, CheckCircle2, XCircle, Clock, AlertTriangle } from 'lucide-react';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
 

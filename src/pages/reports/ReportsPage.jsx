@@ -12,14 +12,12 @@ import { useStudents } from '../../hooks/useStudents';
 import { useCurrentTerm } from '../../hooks/useCurrentTerm';
 import {
   reportsCol, query, where, onSnapshot, setDoc, updateDoc,
-  reportRef, now, getDocs,
-} from '../../firebase/firestore';
+  now, } from '../../firebase/firestore';
 import { db } from '../../firebase/config';
-import { doc, collection } from 'firebase/firestore';
+import { doc } from 'firebase/firestore';
 import {
-  FileText, CheckCircle2, Clock, Send, ChevronDown, ChevronUp,
-  Lock, AlertCircle, Sparkles,
-} from 'lucide-react';
+  FileText, CheckCircle2, Send, ChevronDown, ChevronUp,
+  Lock, AlertCircle, } from 'lucide-react';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
 import NotifyGuardianButton from '../../components/NotifyGuardianButton';
@@ -138,7 +136,7 @@ export default function ReportsPage() {
         </div>
         {/* Workflow steps */}
         <div className="flex gap-2 mt-3 overflow-x-auto">
-          {STATUS_ORDER.map((s, i) => {
+          {STATUS_ORDER.map((s) => {
             const count = students.filter((st) => reports[st.id]?.status === s).length;
             const meta  = STATUS_META[s];
             return (
@@ -152,7 +150,7 @@ export default function ReportsPage() {
 
       {!term && (
         <div className="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-3">
-          <AlertCircle size={15} /> No active term found. Reports can still be drafted but won't be tied to a term until admin creates one.
+          <AlertCircle size={15} /> No active term found. Reports can still be drafted but won’t be tied to a term until admin creates one.
         </div>
       )}
 

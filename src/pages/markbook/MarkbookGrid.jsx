@@ -12,11 +12,11 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useAssessments } from '../../hooks/useAssessments';
 import { useStudents } from '../../hooks/useStudents';
 import {
-  marksRef, getDoc, setDoc, now, studentsCol, writeAuditLog,
-  query, where, getDocs, onSnapshot,
+  marksRef, setDoc, now, writeAuditLog,
+  onSnapshot,
 } from '../../firebase/firestore';
 import { useAuth } from '../../contexts/AuthContext';
-import { Lock, Edit3, Download } from 'lucide-react';
+import { Lock, Download } from 'lucide-react';
 import clsx from 'clsx';
 import * as XLSX from 'xlsx';
 import toast from 'react-hot-toast';
@@ -24,15 +24,12 @@ import toast from 'react-hot-toast';
 const SPECIAL_CODES = { A: 'absent', X: 'exempt', a: 'absent', x: 'exempt' };
 
 export default function MarkbookGrid({ groupId, group }) {
-  const { firebaseUser, hasRole } = useAuth();
+  const { firebaseUser } = useAuth();
   const { assessments, loading: loadingA } = useAssessments(groupId);
 
   const [marksMap,  setMarksMap]  = useState({});   // { [assessmentId]: entries }
   const [locked,    setLocked]    = useState({});    // { [assessmentId]: bool }
   const [focusCell, setFocusCell] = useState(null);  // { row, col }
-  const [pendingWrites, setPending] = useState({});  // throttled saves
-
-  const isHOD = hasRole('hod', 'vicePrincipal', 'superAdmin');
 
   // Load students in this group (chunked — classes can exceed 30)
   const { students } = useStudents(group?.studentIds ?? []);
@@ -73,7 +70,6 @@ export default function MarkbookGrid({ groupId, group }) {
   // Debounced save for a single cell
   const saveCell = useCallback(async (assessmentId, studentId, value, status) => {
     const ref = marksRef(groupId, assessmentId);
-    const field = `entries.${studentId}`;
     try {
       await setDoc(ref, {
         entries: { [studentId]: { raw: status ? null : value, status: status ?? null } },
@@ -114,7 +110,7 @@ export default function MarkbookGrid({ groupId, group }) {
     return band?.grade ?? 'U';
   }
 
-  function handleKeyDown(e, row, col, aIdx) {
+  function handleKeyDown(e, row, col) {
     const moves = {
       ArrowRight: [0, 1], ArrowLeft: [0, -1],
       ArrowDown:  [1, 0], ArrowUp:  [-1, 0],
@@ -166,7 +162,7 @@ export default function MarkbookGrid({ groupId, group }) {
               <th className="text-left px-3 py-2 font-medium text-slate-600 dark:text-slate-300 sticky left-0 bg-slate-50 dark:bg-slate-900 min-w-[160px]">
                 Student
               </th>
-              {assessments.map((a, ai) => (
+              {assessments.map((a) => (
                 <th key={a.id} className="text-center px-2 py-2 font-medium text-slate-600 dark:text-slate-300 min-w-[90px]">
                   <div className="flex flex-col items-center gap-0.5">
                     <span className="truncate max-w-[80px]" title={a.title}>{a.title}</span>

@@ -4,16 +4,15 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTeachingGroups } from '../hooks/useTeachingGroups';
 import { useCurrentTerm } from '../hooks/useCurrentTerm';
 import {
-  BookOpen, ClipboardList, FileText, Calendar, AlertCircle, BarChart2,
+  BookOpen, ClipboardList, FileText, Calendar, BarChart2,
 } from 'lucide-react';
 import {
   assessmentsCol, marksRef, registersCol, reportsCol,
-  query, where, getDocs, getDoc, onSnapshot,
-} from '../firebase/firestore';
+  query, where, getDocs, getDoc, } from '../firebase/firestore';
 import clsx from 'clsx';
 
 export default function Dashboard() {
-  const { profile, firebaseUser } = useAuth();
+  const { profile } = useAuth();
   const { groups, loading }       = useTeachingGroups();
   const { term }                  = useCurrentTerm();
 

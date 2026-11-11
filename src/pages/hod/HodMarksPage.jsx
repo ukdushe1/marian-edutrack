@@ -3,19 +3,17 @@
  * HOD sees all assessments across their department's groups, with class averages.
  * Can lock/unlock individual assessments.
  */
-import { useState, useEffect } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
+import { useState, useEffect, useRef } from 'react';
 import {
   teachingGroupsCol, syllabiCol, onSnapshot, getDocs, query, orderBy, now,
 } from '../../firebase/firestore';
 import { db } from '../../firebase/config';
 import { doc, collection, onSnapshot as fsOnSnapshot, updateDoc } from 'firebase/firestore';
-import { BookOpen, Lock, Unlock, ChevronDown, ChevronUp, BarChart2 } from 'lucide-react';
+import { BookOpen, Lock, Unlock, ChevronDown, ChevronUp } from 'lucide-react';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
 
 export default function HodMarksPage() {
-  const { firebaseUser } = useAuth();
   const [groups,   setGroups]   = useState([]);
   const [syllabi,  setSyllabi]  = useState([]);
   const [expanded, setExpanded] = useState(null);
@@ -31,19 +29,22 @@ export default function HodMarksPage() {
     return unsub;
   }, []);
 
+  // Live listeners for expanded classes — closed when the HOD leaves the page
+  const listeners = useRef({});
+  useEffect(() => () => Object.values(listeners.current).forEach((u) => u()), []);
+
   // When a group is expanded, subscribe to its assessments
   function handleExpand(groupId) {
     if (expanded === groupId) { setExpanded(null); return; }
     setExpanded(groupId);
     if (assessments[groupId]) return; // already loaded
-    const unsubA = fsOnSnapshot(
+    listeners.current[groupId] = fsOnSnapshot(
       query(collection(db, 'teachingGroups', groupId, 'assessments'), orderBy('createdAt', 'asc')),
       (snap) => setAssessments((prev) => ({
         ...prev,
         [groupId]: snap.docs.map((d) => ({ id: d.id, ...d.data() })),
       }))
     );
-    // Note: we don't unsubscribe per-group since the HOD keeps viewing the page
   }
 
   async function toggleLock(groupId, assessment) {

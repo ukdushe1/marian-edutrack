@@ -4,10 +4,10 @@
  */
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { col, addDoc, query, orderBy, onSnapshot, now, updateDoc, ref } from '../../firebase/firestore';
+import { col, addDoc, query, orderBy, onSnapshot, now, updateDoc } from '../../firebase/firestore';
 import { db } from '../../firebase/config';
 import { doc, arrayUnion } from 'firebase/firestore';
-import { Bell, Plus, CheckCircle2, X, Paperclip } from 'lucide-react';
+import { Bell, Plus, CheckCircle2, X } from 'lucide-react';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
 import { formatDistanceToNow } from 'date-fns';

@@ -6,12 +6,11 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import {
-  teachingGroupsCol, assessmentsCol, studentsCol,
-  onSnapshot, getDocs, query, orderBy, now,
-  col,
-} from '../../firebase/firestore';
+  teachingGroupsCol, studentsCol,
+  onSnapshot, getDocs, now,
+  } from '../../firebase/firestore';
 import { db } from '../../firebase/config';
-import { doc, setDoc, collection, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { Target, AlertTriangle, CheckCircle2, TrendingDown } from 'lucide-react';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';

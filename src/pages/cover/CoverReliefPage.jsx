@@ -3,7 +3,6 @@
  * Log absent teacher, see free colleagues, assign cover, attach lesson note.
  */
 import { useState, useEffect } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
 import {
   col, addDoc, updateDoc, onSnapshot,
   query, orderBy, getDocs, now, usersCol,
@@ -19,7 +18,6 @@ import { format, parseISO } from 'date-fns';
 const coverCol = () => col('coverRequests');
 
 export default function CoverReliefPage() {
-  const { firebaseUser } = useAuth();
   const [requests, setRequests] = useState([]);
   const [staff,    setStaff]    = useState([]);
   const [showForm, setShowForm] = useState(false);

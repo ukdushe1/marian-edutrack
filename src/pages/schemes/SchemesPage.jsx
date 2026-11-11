@@ -5,8 +5,8 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import {
-  col, addDoc, updateDoc, deleteDoc, onSnapshot,
-  query, orderBy, where, getDocs, now, teachingGroupsCol,
+  addDoc, updateDoc, deleteDoc, onSnapshot,
+  query, orderBy, now, teachingGroupsCol,
 } from '../../firebase/firestore';
 import { db } from '../../firebase/config';
 import { doc, collection } from 'firebase/firestore';

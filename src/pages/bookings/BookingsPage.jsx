@@ -7,15 +7,13 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import {
-  col, addDoc, updateDoc, deleteDoc, onSnapshot,
-  query, orderBy, getDocs, now,
+  col, addDoc, deleteDoc, onSnapshot,
+  query, orderBy, now,
 } from '../../firebase/firestore';
 import { db } from '../../firebase/config';
 import { doc } from 'firebase/firestore';
 import { CalendarCheck2, Plus, X, Wrench, Trash2, AlertTriangle } from 'lucide-react';
-import clsx from 'clsx';
 import toast from 'react-hot-toast';
-import { format, parseISO } from 'date-fns';
 
 const bookingsCol  = () => col('resourceBookings');
 const resourcesCol = () => col('resources');
@@ -137,7 +135,7 @@ export default function BookingsPage() {
   );
 }
 
-function BookingForm({ resources, bookings, bookedBy, bookedByName, isClash, onClose }) {
+function BookingForm({ resources, bookedBy, bookedByName, isClash, onClose }) {
   const [form, setForm] = useState({
     resourceId: resources[0]?.id ?? '',
     date:       new Date().toISOString().slice(0, 10),

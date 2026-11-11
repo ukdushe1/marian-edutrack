@@ -8,10 +8,9 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   registersCol, query, where, getDocs, setDoc, now,
-  studentsCol, onSnapshot, ref,
-} from '../../firebase/firestore';
+  } from '../../firebase/firestore';
 import { db } from '../../firebase/config';
-import { doc, collection } from 'firebase/firestore';
+import { doc } from 'firebase/firestore';
 import { useTeachingGroups } from '../../hooks/useTeachingGroups';
 import { useStudents } from '../../hooks/useStudents';
 import { CheckCircle2, XCircle, Clock, MinusCircle, Download, AlertTriangle } from 'lucide-react';
@@ -30,7 +29,7 @@ const STATUS_OPTIONS = [
 function statusMeta(v) { return STATUS_OPTIONS.find((s) => s.value === v) ?? STATUS_OPTIONS[0]; }
 
 export default function RegisterPage() {
-  const { firebaseUser, hasRole } = useAuth();
+  const { firebaseUser } = useAuth();
   const { groups } = useTeachingGroups();
 
   const todayISO = new Date().toISOString().slice(0, 10);

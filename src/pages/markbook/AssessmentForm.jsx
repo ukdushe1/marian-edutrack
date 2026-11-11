@@ -32,7 +32,7 @@ export default function AssessmentForm({ groupId, assessment, onClose }) {
       });
       toast.success('Assessment added.');
       onClose();
-    } catch (err) {
+    } catch {
       toast.error('Failed to save assessment.');
     } finally {
       setBusy(false);

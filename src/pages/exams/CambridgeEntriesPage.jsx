@@ -3,14 +3,13 @@
  * Track candidate registrations per exam series; flag missing entries; export CSV.
  */
 import { useState, useEffect } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
 import {
   col, addDoc, updateDoc, deleteDoc, onSnapshot,
   query, orderBy, getDocs, now, studentsCol, syllabiCol,
 } from '../../firebase/firestore';
 import { db } from '../../firebase/config';
-import { doc, where } from 'firebase/firestore';
-import { GraduationCap, Plus, X, Download, AlertCircle, CheckCircle2, Pencil } from 'lucide-react';
+import { doc } from 'firebase/firestore';
+import { GraduationCap, Plus, X, Download, Pencil } from 'lucide-react';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
 

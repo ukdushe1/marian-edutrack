@@ -4,7 +4,6 @@
  * Each tool card will call a Cloud Function that calls Gemini/Claude.
  */
 import { Sparkles, MessageSquare, HelpCircle, BookOpen, PenTool, AlertTriangle } from 'lucide-react';
-import clsx from 'clsx';
 
 const TOOLS = [
   {

@@ -4,7 +4,7 @@
  */
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { conductCol, addDoc, query, where, orderBy, onSnapshot, now, studentsCol, getDocs } from '../../firebase/firestore';
+import { conductCol, addDoc, query, orderBy, onSnapshot, now, studentsCol, getDocs } from '../../firebase/firestore';
 import { Shield, Plus, TrendingUp, TrendingDown, AlertTriangle, X } from 'lucide-react';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';

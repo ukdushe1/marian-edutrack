@@ -2,13 +2,11 @@ import { useState } from 'react';
 import { useTeachingGroups } from '../../hooks/useTeachingGroups';
 import MarkbookGrid from './MarkbookGrid';
 import AssessmentForm from './AssessmentForm';
-import { Plus, Download, Lock, Unlock } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
+import { Plus } from 'lucide-react';
 import clsx from 'clsx';
 
 export default function MarkbookPage() {
   const { groups, loading } = useTeachingGroups();
-  const { hasRole }         = useAuth();
   const [groupId,     setGroupId]     = useState('');
   const [showForm,    setShowForm]    = useState(false);
   const [editAssessment, setEditAssessment] = useState(null);

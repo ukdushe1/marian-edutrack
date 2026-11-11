@@ -4,7 +4,6 @@
  * Each session: syllabusId, paper, date, start, duration, venue, seats, invigilatorIds[].
  */
 import { useState, useEffect } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
 import {
   col, addDoc, updateDoc, deleteDoc, onSnapshot,
   query, orderBy, getDocs, now, syllabiCol, usersCol,
@@ -17,13 +16,11 @@ import {
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
 import { TEACHING_ROLES } from '../../lib/roles';
-import { format, parseISO, addMinutes, isWithinInterval } from 'date-fns';
+import { format, parseISO, addMinutes } from 'date-fns';
 
 const sessionsCol  = () => col('examSessions');
-const invigilators = (users) => users.filter((u) => (u.roles ?? []).some((r) => [...TEACHING_ROLES, 'examsOfficer'].includes(r)));
 
 export default function ExamTimetablePage() {
-  const { firebaseUser } = useAuth();
   const [sessions,  setSessions]  = useState([]);
   const [syllabi,   setSyllabi]   = useState([]);
   const [staff,     setStaff]     = useState([]);
