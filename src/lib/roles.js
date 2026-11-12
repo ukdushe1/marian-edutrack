@@ -16,7 +16,7 @@ export const ROLES = [
   { key: 'principal',      label: 'Principal',          help: 'Full administrator rights, including users and roles' },
   { key: 'superAdmin',     label: 'System Admin',       help: 'ICT administrator — full rights' },
   { key: 'vicePrincipal',  label: 'Vice Principal',     help: 'Approves and publishes reports, cover, notices' },
-  { key: 'hod',            label: 'HOD',                help: 'Head of Department — manages their subjects’ syllabi, locks marks' },
+  { key: 'hod',            label: 'HOD',                help: 'Head of Department — manages their subjects’ syllabi, schemes and marks (only the subjects assigned to them)' },
   { key: 'teacher',        label: 'Subject Teacher',    help: 'Marks, registers and subject comments for their classes' },
   { key: 'classTeacher',   label: 'Class Teacher',      help: 'Roll call, conduct and class-teacher comments' },
   { key: 'examsOfficer',   label: 'Exams Officer',      help: 'Exam timetable and Cambridge entries' },

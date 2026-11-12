@@ -74,34 +74,38 @@ service cloud.firestore {
       allow read: if isStaff();
       allow write: if isAdmin();
 
-      // Schemes of work: group teachers or HOD/admin
+      function groupData()    { return get(/databases/$(database)/documents/teachingGroups/$(groupId)).data; }
+      function teachesGroup() { return uid() in groupData().get('teacherIds', []); }
+      // Principal / VP: every group. HOD: only groups whose subject is on their profile.
+      function leadsGroup()   { return isSenior() || hodOf(groupData().get('syllabusCode', '')); }
+
+      // Schemes of work: the group's teachers, or its HOD / senior staff
       match /schemeEntries/{eId} {
         allow read:  if isStaff();
-        allow write: if isHOD() ||
-          (isStaff() && uid() in get(/databases/$(database)/documents/teachingGroups/$(groupId)).data.teacherIds);
+        allow write: if isStaff() && (leadsGroup() || teachesGroup());
       }
 
-      // Assessments: the class's teachers or HOD/admin. Only HOD+ change lock/moderation;
-      // once frozen (published exam results) only the Principal / VP can change them.
-      function teachesGroup() { return uid() in get(/databases/$(database)/documents/teachingGroups/$(groupId)).data.get('teacherIds', []); }
+      // Assessments: the class's teachers, or its HOD / senior staff. Only the subject's
+      // HOD (or senior staff) change lock/moderation; once frozen (published exam
+      // results) only the Principal / VP can change them.
       match /assessments/{aId} {
         allow read: if isStaff();
-        allow create: if isStaff() && (isHOD() || teachesGroup());
-        allow update: if isStaff() && (isHOD() || teachesGroup())
+        allow create: if isStaff() && (leadsGroup() || teachesGroup());
+        allow update: if isStaff() && (leadsGroup() || teachesGroup())
                       && (!resource.data.get('frozen', false) || isHead())
-                      && (isHOD() || (same('locked') && same('moderation') && same('frozen')));
-        allow delete: if isAdmin() || ((isHOD() || teachesGroup()) && !resource.data.get('frozen', false));
+                      && (leadsGroup() || (same('locked') && same('moderation') && same('frozen')));
+        allow delete: if isAdmin() || ((leadsGroup() || teachesGroup()) && !resource.data.get('frozen', false));
 
-        // Marks: the class's teachers + HOD/admin; blocked when the assessment is
-        // locked (HOD+ only) or frozen (Principal / VP only).
+        // Marks: the class's teachers + its HOD / senior staff; blocked when the
+        // assessment is locked (HOD of the subject+ only) or frozen (Principal / VP only).
         function assessmentPath() { return /databases/$(database)/documents/teachingGroups/$(groupId)/assessments/$(aId); }
         match /marks/{mId} {
           allow read: if isStaff();
           allow write: if isStaff() &&
-            (!('locked' in request.resource.data) || isHOD()) &&
-            (isHOD() || teachesGroup()) &&
+            (!('locked' in request.resource.data) || leadsGroup()) &&
+            (leadsGroup() || teachesGroup()) &&
             (!exists(assessmentPath()) || (
-              (!get(assessmentPath()).data.get('locked', false) || isHOD()) &&
+              (!get(assessmentPath()).data.get('locked', false) || leadsGroup()) &&
               (!get(assessmentPath()).data.get('frozen', false) || isHead())));
         }
       }

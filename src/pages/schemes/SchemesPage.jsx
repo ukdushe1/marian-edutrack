@@ -1,6 +1,7 @@
 /**
  * Schemes of work & homework — Phase 3.
- * Teachers post weekly topic + homework. HOD can view all in dept.
+ * Teachers post weekly topic + homework for their groups. A HOD also manages
+ * every group in their own subjects; Principal / VP see all. Mirrors firestore.rules.
  */
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -12,30 +13,33 @@ import { db } from '../../firebase/config';
 import { doc, collection } from 'firebase/firestore';
 import { Layers, Plus, X, BookOpen, CalendarDays, Pencil, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import clsx from 'clsx';
+import { useHodScope } from '../../hooks/useHodScope';
 import toast from 'react-hot-toast';
 import { format, parseISO } from 'date-fns';
 
 const schemeEntriesCol = (groupId) => collection(db, 'teachingGroups', groupId, 'schemeEntries');
 
 export default function SchemesPage() {
-  const { firebaseUser, roles } = useAuth();
-  const [groups,   setGroups]   = useState([]);
+  const { firebaseUser } = useAuth();
+  const scope = useHodScope();
+  const [allGroups, setAllGroups] = useState([]);
   const [selGroup, setSelGroup] = useState('');
   const [entries,  setEntries]  = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editing,  setEditing]  = useState(null);
   const [expanded, setExpanded] = useState(null);
 
+  useEffect(() => onSnapshot(teachingGroupsCol(), (s) =>
+    setAllGroups(s.docs.map((d) => ({ id: d.id, ...d.data() })))
+  ), []);
+
+  // Groups this user teaches, plus every group in the subjects they lead
+  const groups = allGroups.filter((g) =>
+    scope.leadsGroup(g) || (g.teacherIds ?? []).includes(firebaseUser?.uid));
+  const firstGroupId = groups[0]?.id ?? '';
   useEffect(() => {
-    const unsub = onSnapshot(teachingGroupsCol(), (s) => {
-      const all = s.docs.map((d) => ({ id: d.id, ...d.data() }));
-      const mine = (roles ?? []).includes('hod') ? all :
-        all.filter((g) => (g.teacherIds ?? []).includes(firebaseUser?.uid));
-      setGroups(mine);
-      if (!selGroup && mine.length) setSelGroup(mine[0].id);
-    });
-    return unsub;
-  }, [firebaseUser?.uid]);
+    if (!selGroup && firstGroupId) setSelGroup(firstGroupId);
+  }, [selGroup, firstGroupId]);
 
   useEffect(() => {
     if (!selGroup) return;

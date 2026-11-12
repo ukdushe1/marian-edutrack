@@ -1,7 +1,7 @@
 /**
  * HOD department marks — Phase 2.
- * HOD sees all assessments across their department's groups, with class averages.
- * Can lock/unlock individual assessments.
+ * HOD sees the assessments of groups in their own subjects (profile hodSubjects)
+ * and can lock/unlock them. Principal / VP see every group. firestore.rules enforces it.
  */
 import { useState, useEffect, useRef } from 'react';
 import {
@@ -12,16 +12,17 @@ import { doc, collection, onSnapshot as fsOnSnapshot, updateDoc } from 'firebase
 import { BookOpen, Lock, Unlock, ChevronDown, ChevronUp } from 'lucide-react';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
+import { useHodScope } from '../../hooks/useHodScope';
 
 export default function HodMarksPage() {
-  const [groups,   setGroups]   = useState([]);
+  const scope = useHodScope();
+  const [allGroups, setGroups]  = useState([]);
   const [syllabi,  setSyllabi]  = useState([]);
   const [expanded, setExpanded] = useState(null);
   // assessments per group: { [groupId]: assessment[] }
   const [assessments, setAssessments] = useState({});
 
   useEffect(() => {
-    // HODs see all groups (dept filter would be: same syllabusCode)
     const unsub = onSnapshot(teachingGroupsCol(), (s) => {
       setGroups(s.docs.map((d) => ({ id: d.id, ...d.data() })));
     });
@@ -54,6 +55,8 @@ export default function HodMarksPage() {
   }
 
   function syllabus(id) { return syllabi.find((s) => s.id === id); }
+  const codeOf = (g) => g.syllabusCode ?? syllabus(g.syllabusId)?.code;
+  const groups = allGroups.filter((g) => scope.leads(codeOf(g)));
 
   return (
     <div className="max-w-2xl space-y-4">
@@ -62,7 +65,8 @@ export default function HodMarksPage() {
         <h1 className="text-xl font-bold">Department marks</h1>
       </div>
       <p className="text-sm text-slate-500 dark:text-slate-400">
-        View all classes in your department. Lock assessments to prevent further changes.
+        {scope.senior ? 'All classes. ' : scope.subjects.length ? `Classes in ${scope.subjects.join(', ')}. ` : ''}
+        Lock assessments to prevent further changes.
       </p>
 
       <div className="space-y-2">
@@ -115,6 +119,7 @@ export default function HodMarksPage() {
                             </td>
                             <td className="px-3 py-2 text-center">
                               <button onClick={() => toggleLock(g.id, a)}
+                                aria-label={a.locked ? `Unlock ${a.title}` : `Lock ${a.title}`}
                                 className={clsx('p-1.5 rounded-lg transition-colors',
                                   a.locked
                                     ? 'text-slate-400 hover:bg-green-50 dark:hover:bg-green-900/20 hover:text-green-600'
@@ -133,7 +138,10 @@ export default function HodMarksPage() {
           );
         })}
         {!groups.length && (
-          <div className="text-center py-14 text-slate-400 text-sm">No classes found.</div>
+          <div className="text-center py-14 text-slate-400 text-sm">
+            {scope.senior || scope.subjects.length ? 'No classes found.'
+              : 'No subjects are assigned to you yet. Ask the Principal to set your HOD subjects in Users.'}
+          </div>
         )}
       </div>
     </div>

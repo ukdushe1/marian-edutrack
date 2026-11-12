@@ -33,7 +33,9 @@ beforeEach(async () => {
     }
     await setDoc(doc(db, 'syllabi/sci'), { code: '4005', name: 'Science' });
     await setDoc(doc(db, 'syllabi/math'), { code: '4024', name: 'Maths' });
-    await setDoc(doc(db, 'teachingGroups/g1'), { name: '3D1 Sci', syllabusId: 'sci', teacherIds: ['teacher'], studentIds: ['s1'] });
+    await setDoc(doc(db, 'teachingGroups/g1'), { name: '3D1 Sci', syllabusId: 'sci', syllabusCode: '4005', teacherIds: ['teacher'], studentIds: ['s1'] });
+    await setDoc(doc(db, 'teachingGroups/g2'), { name: '3D1 Maths', syllabusId: 'math', syllabusCode: '4024', teacherIds: ['teacher2'], studentIds: ['s1'] });
+    await setDoc(doc(db, 'teachingGroups/g2/assessments/locked'), { title: 'Maths test', maxMark: 10, locked: true });
     await setDoc(doc(db, 'teachingGroups/g1/assessments/open'), { title: 'Test 1', maxMark: 10 });
     await setDoc(doc(db, 'teachingGroups/g1/assessments/locked'), { title: 'Test 2', maxMark: 10, locked: true });
     await setDoc(doc(db, 'teachingGroups/g1/assessments/frozen'), { title: 'Exam', maxMark: 100, locked: true, frozen: true });
@@ -91,6 +93,27 @@ describe('marks: locked and frozen', () => {
   });
   it('a teacher cannot unlock an assessment', async () => {
     await assertFails(updateDoc(doc(as('teacher'), 'teachingGroups/g1/assessments/locked'), { locked: false }));
+  });
+});
+
+describe('HOD scope: only their own subjects', () => {
+  const marks = (db, g, a) => setDoc(doc(db, `teachingGroups/${g}/assessments/${a}/marks/entries`), { entries: { s1: { raw: 5 } } }, { merge: true });
+  it('HOD of 4005 locks/unlocks Science but not Maths', async () => {
+    await assertSucceeds(updateDoc(doc(as('hod'), 'teachingGroups/g1/assessments/locked'), { locked: false }));
+    await assertFails(updateDoc(doc(as('hod'), 'teachingGroups/g2/assessments/locked'), { locked: false }));
+    await assertSucceeds(updateDoc(doc(as('vp'), 'teachingGroups/g2/assessments/locked'), { locked: false }));
+  });
+  it('HOD of 4005 cannot write marks or assessments in a Maths group', async () => {
+    await assertFails(marks(as('hod'), 'g2', 'locked'));
+    await assertFails(setDoc(doc(as('hod'), 'teachingGroups/g2/assessments/new'), { title: 'x', maxMark: 10 }));
+    await assertSucceeds(setDoc(doc(as('hod'), 'teachingGroups/g1/assessments/new'), { title: 'x', maxMark: 10 }));
+  });
+  it('schemes of work: group teacher or the subject HOD only', async () => {
+    const entry = (db, g) => setDoc(doc(db, `teachingGroups/${g}/schemeEntries/w1`), { topic: 'Cells', weekStart: '2026-11-09' });
+    await assertSucceeds(entry(as('hod'), 'g1'));
+    await assertFails(entry(as('hod'), 'g2'));
+    await assertSucceeds(entry(as('teacher2'), 'g2'));
+    await assertFails(entry(as('teacher'), 'g2'));
   });
 });
 
