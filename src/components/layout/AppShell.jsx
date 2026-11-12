@@ -164,7 +164,8 @@ export default function AppShell() {
             Offline — changes will sync when connected
           </div>
         )}
-        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6">
+        {/* [&>*]:mx-auto centres every page's width-capped root (max-w-2xl etc.) */}
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 [&>*]:mx-auto">
           {isAdmin && backupAge != null && backupAge >= 7 && (
             <div className="mb-4 text-sm bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 rounded-xl px-4 py-2.5 flex flex-wrap items-center gap-2 print:hidden">
               {backupAge === Infinity ? 'No backup has been taken yet.' : `Last backup was ${backupAge} days ago.`}
