@@ -2,6 +2,8 @@
  * Exam timetable — Phase 3.
  * Exams officer creates sessions; clash detection runs in-browser.
  * Each session: syllabusId, paper, date, start, duration, venue, seats, invigilatorIds[].
+ * Imported school timetables also carry form, subject, slot and invigilatorNames[]
+ * (staff named on the printed sheet, who may not have accounts yet).
  */
 import { useState, useEffect } from 'react';
 import {
@@ -9,16 +11,24 @@ import {
   query, orderBy, getDocs, now, syllabiCol, usersCol,
 } from '../../firebase/firestore';
 import { db } from '../../firebase/config';
-import { doc } from 'firebase/firestore';
+import { doc, writeBatch } from 'firebase/firestore';
 import {
-  Calendar, Plus, X, AlertTriangle, Clock, MapPin, Users, Pencil, Trash2,
+  Calendar, Plus, X, AlertTriangle, Clock, MapPin, Users, Pencil, Trash2, Upload,
 } from 'lucide-react';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
 import { TEACHING_ROLES } from '../../lib/roles';
 import { format, parseISO, addMinutes } from 'date-fns';
+import { useAuth } from '../../contexts/AuthContext';
+import { SESSIONS as EOY2026, TIMETABLE_NAME as EOY2026_NAME } from '../../lib/examTimetable/endOfYear2026';
 
 const sessionsCol  = () => col('examSessions');
+
+/** "0478 Paper 1", or for an imported session "F5 History P1". */
+function sessionTitle(s, syl) {
+  if (syl) return `${syl.code} ${s.paper ?? ''}`.trim();
+  return [s.form, s.subject, s.paper].filter(Boolean).join(' ') || '—';
+}
 
 export default function ExamTimetablePage() {
   const [sessions,  setSessions]  = useState([]);
@@ -27,10 +37,15 @@ export default function ExamTimetablePage() {
   const [showForm,  setShowForm]  = useState(false);
   const [editing,   setEditing]   = useState(null);
   const [view,      setView]      = useState('list'); // 'list' | 'calendar'
+  const [importing, setImporting] = useState(false);
+  const { hasRole } = useAuth();
+  const canImport = hasRole('examsOfficer', 'vicePrincipal', 'superAdmin', 'principal', 'head');
+  const importedCount = sessions.filter((s) => s.timetableId === 'eoy2026').length;
 
   useEffect(() => {
     const unsub = onSnapshot(query(sessionsCol(), orderBy('date', 'asc')), (s) =>
-      setSessions(s.docs.map((d) => ({ id: d.id, ...d.data() })))
+      setSessions(s.docs.map((d) => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => `${a.date}${a.start}${a.form ?? ''}`.localeCompare(`${b.date}${b.start}${b.form ?? ''}`)))
     );
     getDocs(syllabiCol()).then((s) => setSyllabi(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
     getDocs(usersCol()).then((s) => setStaff(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
@@ -38,11 +53,12 @@ export default function ExamTimetablePage() {
   }, []);
 
   // Clash detection: two sessions clash if same venue + overlapping time
+  // (sessions with no room yet can't clash on room)
   function getClashes() {
     const clashes = new Set();
     sessions.forEach((a, i) => {
       sessions.slice(i + 1).forEach((b) => {
-        if (a.venue !== b.venue || a.date !== b.date) return;
+        if (!a.venue || a.venue !== b.venue || a.date !== b.date) return;
         const aStart = new Date(`${a.date}T${a.start}`);
         const aEnd   = addMinutes(aStart, a.duration ?? 60);
         const bStart = new Date(`${b.date}T${b.start}`);
@@ -66,6 +82,22 @@ export default function ExamTimetablePage() {
 
   const syllabus = (id) => syllabi.find((s) => s.id === id);
 
+  /** Write the End of Year 2026 timetable. Stable ids: re-importing overwrites, never duplicates. */
+  async function importEoy2026() {
+    const again = importedCount > 0;
+    if (!confirm(again
+      ? `Re-import ${EOY2026_NAME}? This overwrites its ${EOY2026.length} sessions, including any edits made to them. Other sessions are not touched.`
+      : `Import ${EOY2026_NAME} (${EOY2026.length} sessions, 16–20 Nov)? Other sessions are not touched.`)) return;
+    setImporting(true);
+    try {
+      const batch = writeBatch(db);
+      EOY2026.forEach(({ id, ...data }) => batch.set(doc(db, 'examSessions', id), { ...data, createdAt: now(), updatedAt: now() }));
+      await batch.commit();
+      toast.success(`${EOY2026.length} sessions imported.`);
+    } catch { toast.error('Import failed. Only the exams officer, Principal or VP can import.'); }
+    setImporting(false);
+  }
+
   return (
     <div className="max-w-3xl space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -73,7 +105,13 @@ export default function ExamTimetablePage() {
           <h1 className="text-xl font-bold flex items-center gap-2"><Calendar size={20}/> Exam timetable</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400">{sessions.length} sessions scheduled</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          {canImport && (
+            <button onClick={importEoy2026} disabled={importing}
+              className="flex items-center gap-1.5 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-60 text-sm font-medium px-3 py-2 rounded-lg transition-colors">
+              <Upload size={15}/> {importing ? 'Importing…' : importedCount ? 'Re-import End of Year 2026' : 'Import End of Year 2026'}
+            </button>
+          )}
           <div className="flex border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
             {['list', 'calendar'].map((v) => (
               <button key={v} onClick={() => setView(v)}
@@ -103,22 +141,26 @@ export default function ExamTimetablePage() {
             const syl   = syllabus(s.syllabusId);
             const clash = clashes.has(s.id);
             const start = `${s.date}T${s.start}`;
-            const end   = addMinutes(new Date(start), s.duration ?? 60);
-            const invigs = (s.invigilatorIds ?? []).map((id) => staff.find((u) => u.id === id)?.name ?? id);
+            const end   = s.duration ? format(addMinutes(new Date(start), s.duration), 'HH:mm') : null;
+            const invigs = [
+              ...(s.invigilatorIds ?? []).map((id) => staff.find((u) => u.id === id)?.name ?? id),
+              ...(s.invigilatorNames ?? []),
+            ];
             return (
               <div key={s.id} className={clsx('bg-white dark:bg-slate-800 rounded-xl border p-4',
                 clash ? 'border-red-300 dark:border-red-700' : 'border-slate-200 dark:border-slate-700')}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold text-sm">{syl?.code ?? '—'} {s.paper}</span>
+                      <span className="font-semibold text-sm">{sessionTitle(s, syl)}</span>
+                      {s.slot && <span className="text-xs bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 px-2 py-0.5 rounded-full">{s.slot}</span>}
                       {clash && <span className="text-xs bg-red-100 dark:bg-red-900/40 text-red-600 px-2 py-0.5 rounded-full flex items-center gap-1"><AlertTriangle size={10}/>Clash</span>}
                     </div>
                     <div className="flex flex-wrap gap-3 mt-1 text-xs text-slate-500 dark:text-slate-400">
                       <span className="flex items-center gap-1"><Calendar size={11}/>{format(parseISO(s.date), 'EEE d MMM yyyy')}</span>
-                      <span className="flex items-center gap-1"><Clock size={11}/>{s.start} — {format(end, 'HH:mm')} ({s.duration}min)</span>
-                      <span className="flex items-center gap-1"><MapPin size={11}/>{s.venue ?? '—'}</span>
-                      <span className="flex items-center gap-1"><Users size={11}/>{s.seats ?? '—'} seats</span>
+                      <span className="flex items-center gap-1"><Clock size={11}/>{end ? `${s.start} — ${end} (${s.duration}min)` : `${s.start} · duration TBC`}</span>
+                      <span className="flex items-center gap-1"><MapPin size={11}/>{s.venue || 'Room not set'}</span>
+                      {s.seats ? <span className="flex items-center gap-1"><Users size={11}/>{s.seats} seats</span> : null}
                     </div>
                     {invigs.length > 0 && (
                       <p className="text-xs text-slate-400 mt-1">Invigilators: {invigs.join(', ')}</p>
@@ -155,7 +197,7 @@ export default function ExamTimetablePage() {
                   return (
                     <div key={s.id} className={clsx('text-sm bg-white dark:bg-slate-800 border rounded-lg px-3 py-2',
                       clashes.has(s.id) ? 'border-red-300 dark:border-red-700' : 'border-slate-200 dark:border-slate-700')}>
-                      <span className="font-medium">{s.start}</span> · {syl?.code} {s.paper} · {s.venue}
+                      <span className="font-medium">{s.start}</span> · {sessionTitle(s, syl)}{s.venue ? ` · ${s.venue}` : ''}
                     </div>
                   );
                 })}
@@ -175,13 +217,15 @@ export default function ExamTimetablePage() {
 function SessionForm({ session, syllabi, staff, onClose }) {
   const editing = !!session;
   const [form, setForm] = useState({
-    syllabusId:     session?.syllabusId     ?? syllabi[0]?.id ?? '',
+    syllabusId:     session ? (session.syllabusId ?? '') : (syllabi[0]?.id ?? ''),
+    form:           session?.form           ?? '',
+    subject:        session?.subject        ?? '',
     paper:          session?.paper          ?? 'Paper 1',
     date:           session?.date           ?? new Date().toISOString().slice(0, 10),
     start:          session?.start          ?? '09:00',
-    duration:       session?.duration       ?? 180,
+    duration:       session ? (session.duration ?? '') : 180,
     venue:          session?.venue          ?? '',
-    seats:          session?.seats          ?? 30,
+    seats:          session ? (session.seats ?? '') : 30,
     invigilatorIds: session?.invigilatorIds ?? [],
   });
   const [busy, setBusy] = useState(false);
@@ -199,7 +243,8 @@ function SessionForm({ session, syllabi, staff, onClose }) {
     e.preventDefault();
     setBusy(true);
     try {
-      const payload = { ...form, duration: Number(form.duration), seats: Number(form.seats), updatedAt: now() };
+      const num = (v) => (v === '' || v == null ? null : Number(v));
+      const payload = { ...form, duration: num(form.duration), seats: num(form.seats), updatedAt: now() };
       if (editing) {
         await updateDoc(doc(db, 'examSessions', session.id), payload);
       } else {
@@ -224,8 +269,19 @@ function SessionForm({ session, syllabi, staff, onClose }) {
           <div>
             <label className="block text-xs font-medium text-slate-500 mb-1">Syllabus</label>
             <select value={form.syllabusId} onChange={(e) => setForm((p) => ({ ...p, syllabusId: e.target.value }))} className={inp}>
+              <option value="">— None (use form and subject below) —</option>
               {syllabi.map((s) => <option key={s.id} value={s.id}>{s.code} — {s.name ?? s.code}</option>)}
             </select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Form</label>
+              <input value={form.form} onChange={(e) => setForm((p) => ({ ...p, form: e.target.value }))} className={inp} placeholder="e.g. F3" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Subject</label>
+              <input value={form.subject} onChange={(e) => setForm((p) => ({ ...p, subject: e.target.value }))} className={inp} placeholder="e.g. Geography" />
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
