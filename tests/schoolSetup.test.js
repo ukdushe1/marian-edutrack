@@ -24,10 +24,15 @@ describe('school setup import', () => {
     expect(titleCase('NICO-WILLIAM')).toBe('Nico-William');
   });
   it('makes one syllabus per subject per level and one group per class per subject', () => {
-    expect(plan.syllabi.map((s) => s.data.code).sort()).toEqual(['AGR-O', 'BS-JR', 'COMP-A', 'ENG-JR', 'ENG-O', 'MAT-A', 'MAT-JR', 'PE-O'].sort());
+    // Forms 1 and 3 share the IGCSE syllabus (one ENG 0500), L6 gets A Level
+    expect(plan.syllabi.map((s) => `${s.data.code} ${s.data.name} (${s.data.level})`).sort()).toEqual([
+      '0413 Physical Education (IGCSE)', '0450 Business Studies (IGCSE)', '0500 First Language English (IGCSE)',
+      '0580 Mathematics (IGCSE)', '0600 Agriculture (IGCSE)', '9618 Computer Science (A Level)', '9709 Mathematics (A Level)',
+    ]);
     const g = plan.groups.find((x) => x.path === 'teachingGroups/mhs-1d-mat');
-    expect(g.data).toMatchObject({ name: '1D Mathematics', syllabusCode: 'MAT-JR', studentIds: ['mhs-1d-001', 'mhs-1d-002'] });
-    expect(plan.syllabi.find((s) => s.data.code === 'MAT-A').data.components.map((c) => c.paper)).toEqual(['Pure Mathematics', 'Statistics']);
+    expect(g.data).toMatchObject({ name: '1D Mathematics', syllabusId: 'mhs-0580', syllabusCode: '0580', studentIds: ['mhs-1d-001', 'mhs-1d-002'] });
+    expect(plan.groups.find((x) => x.path === 'teachingGroups/mhs-3d1-eng').data.syllabusId).toBe('mhs-0500');
+    expect(plan.syllabi.find((s) => s.data.code === '9709').data.components.map((c) => c.paper)).toEqual(['Pure Mathematics', 'Statistics']);
   });
   it('never sets teacherIds, so re-importing keeps assigned teachers', () => {
     expect(plan.groups.every((x) => !('teacherIds' in x.data))).toBe(true);
@@ -40,6 +45,11 @@ describe('school setup import', () => {
     expect(plan.warnings.join(' | ')).toMatch(/unknown subject "XYZ"/);
     expect(plan.warnings.join(' | ')).toMatch(/Gamma Cara-Lee is in both 3D1 and 3G/);
     expect(plan.warnings.join(' | ')).toMatch(/3G has no row on the Subjects sheet/);
+  });
+  it('a subject with no Cambridge code keeps a school code and is flagged', () => {
+    const p = planSchoolSetup([{ class: '2D', surname: 'X', firstName: 'Y' }], [{ class: '2D', subjects: 'SHO' }]);
+    expect(p.syllabi[0].data).toMatchObject({ code: 'SHO', name: 'Shona', level: 'IGCSE' });
+    expect(p.warnings.join()).toMatch(/Shona \(IGCSE\) has no Cambridge code/);
   });
   it('rejects rows missing a name', () => {
     expect(planSchoolSetup([{ class: '1D', surname: 'X', firstName: '' }], []).errors[0]).toMatch(/surname and firstName/);

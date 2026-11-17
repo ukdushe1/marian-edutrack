@@ -4,7 +4,7 @@
  */
 import { useState } from 'react';
 import * as XLSX from 'xlsx';
-import { writeBatch, doc, serverTimestamp } from 'firebase/firestore';
+import { writeBatch, doc, serverTimestamp, collection, getDocs, query, where, deleteDoc } from 'firebase/firestore';
 import { School, Upload, Loader2, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { db } from '../../firebase/config';
@@ -46,7 +46,15 @@ export default function SchoolSetupCard() {
         await batch.commit();
         setProgress({ n: Math.min(i + 400, all.length), total: all.length });
       }
-      setDone(`Imported ${plan.classes.length} classes, ${plan.syllabi.length} subjects, ${plan.students.length} students and ${plan.groups.length} teaching groups.`);
+      // Subjects from an earlier import that no class uses any more (e.g. old codes) are removed
+      const keep = new Set(plan.syllabi.map((x) => x.path.split('/')[1]));
+      const old = (await getDocs(query(collection(db, 'syllabi'), where('source', '==', 'schoolSetup')))).docs.filter((d) => !keep.has(d.id));
+      let removed = 0;
+      for (const d of old) {
+        const used = await getDocs(query(collection(db, 'teachingGroups'), where('syllabusId', '==', d.id)));
+        if (used.empty) { await deleteDoc(d.ref); removed++; }
+      }
+      setDone(`Imported ${plan.classes.length} classes, ${plan.syllabi.length} subjects, ${plan.students.length} students and ${plan.groups.length} teaching groups.${removed ? ` Removed ${removed} old subjects that no class uses now.` : ''}`);
       setPlan(null);
       toast.success('School setup imported.');
     } catch (e) {
