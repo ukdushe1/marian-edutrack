@@ -253,7 +253,7 @@ export function stageStatus(data, syllabusId, stageKey) {
     case 'setup': done = !!win.approved; started = true; break;
     case 'papers': done = sp.length > 0 && sp.every((p) => p.status === 'vetted' || p.status === 'printed');
       started = sp.length > 0; break;
-    case 'timetable': done = !!win.timetablePublished && sp.length > 0 && sp.every((p) => p.date && p.start && p.venue);
+    case 'timetable': done = !!win.timetablePublished && sp.length > 0 && sp.every((p) => p.date && p.start);
       started = sp.some((p) => p.date); break;
     case 'sitting': done = sp.length > 0 && sp.every((p) => p.attendanceSubmitted); started = sp.some((p) => p.attendanceSubmitted); break;
     case 'marking': done = pairs.length > 0 && pairs.every((a) => a?.submitted); started = pairs.some((a) => a); break;

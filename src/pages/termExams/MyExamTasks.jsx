@@ -29,7 +29,7 @@ export default function MyExamTasks() {
         const due = (k) => w.stageDue?.[k] ?? '';
         for (const p of papers) {
           if (p.setterId === uid && p.status === 'draft') out.push({ w, kind: 'Set paper', what: `${paperLabel(p)} — build the question layout for vetting`, due: due('papers'), to: `/exams/term/${w.id}?tab=papers` });
-          if ((p.invigilatorIds ?? []).includes(uid) && !p.attendanceSubmitted && w.timetablePublished) out.push({ w, kind: 'Invigilate', what: `${paperLabel(p)} — ${p.date} ${p.start}, ${p.venue}: take attendance`, due: p.date ?? '', to: `/exams/term/${w.id}?tab=sitting` });
+          if ((p.invigilatorIds ?? []).includes(uid) && !p.attendanceSubmitted && w.timetablePublished) out.push({ w, kind: 'Invigilate', what: `${paperLabel(p)} — ${p.date} ${p.start}, ${p.venue || 'room not set'}: take attendance`, due: p.date ?? '', to: `/exams/term/${w.id}?tab=sitting` });
           if (!p.attendanceSubmitted) continue;
           for (const g of paperGroups(myGroups, students, p)) {
             const a = await getDoc(examAssessmentRef(g.id, p.id));

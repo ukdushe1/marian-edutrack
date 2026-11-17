@@ -69,13 +69,14 @@ export default function TimetablePanel({ data }) {
   }
 
   async function publish(v) {
-    if (v && papers.some((p) => !p.date || !p.start || !p.venue)) { toast.error('Every paper needs a date, start time and room first.'); return; }
+    // Rooms are optional: they can be added after publishing
+    if (v && papers.some((p) => !p.date || !p.start)) { toast.error('Every paper needs a date and start time first.'); return; }
     if (v && clashes.length) { toast.error('Resolve the clashes first.'); return; }
     try {
       if (v) {
         await Promise.all(papers.map((p) => setDoc(doc(db, 'examSessions', `term_${p.id}`), {
           syllabusId: p.syllabusId, paper: p.paper, form: p.formLabel ?? '', date: p.date, start: p.start, duration: Number(p.duration),
-          venue: p.venue, seats: Number(p.seats || candidatesFor(data, p).length), invigilatorIds: p.invigilatorIds ?? [],
+          venue: p.venue ?? '', seats: Number(p.seats || candidatesFor(data, p).length), invigilatorIds: p.invigilatorIds ?? [],
           windowId: win.id, examPaperId: p.id, updatedAt: serverTimestamp(),
         })));
       }
@@ -88,7 +89,7 @@ export default function TimetablePanel({ data }) {
 
   return (
     <div className="space-y-3">
-      {win.timetablePublished ? <Note tone="ok">Published to staff.</Note> : <Note>Sign-off: publish the timetable once every paper has a date, time and room, with no clashes.</Note>}
+      {win.timetablePublished ? <Note tone="ok">Published to staff.</Note> : <Note>Sign-off: publish the timetable once every paper has a date and time, with no clashes. Rooms are optional.</Note>}
       {clashes.length > 0 && (
         <div className="text-sm border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded-xl px-4 py-3">
           <p className="font-semibold flex items-center gap-1.5"><AlertTriangle size={14} /> {clashes.length} clash{clashes.length > 1 ? 'es' : ''}</p>
