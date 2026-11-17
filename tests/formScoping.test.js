@@ -99,3 +99,23 @@ describe('timetable → papers', () => {
     expect(recoverInvigilatorLinks({ sessions, papers: [{ importKey: 'r1', invigilatorIds: [], invigilatorNames: ['Ushe'] }], users: staff })).toEqual({});
   });
 });
+
+describe('choosing the classes for a hand-added paper', () => {
+  it('labels the choice like the timetable', async () => {
+    const { formLabelFor, classesTakingSubject } = await import('../src/lib/termExam/model');
+    const cs = [{ id: 'a', name: '1D' }, { id: 'b', name: '1E' }, { id: 'c', name: '3D1' }, { id: 'd', name: '3E' }, { id: 'e', name: 'L6 Sciences' }];
+    expect(formLabelFor(['d'], cs)).toBe('F3E');
+    expect(formLabelFor(['a', 'b'], cs)).toBe('F1');
+    expect(formLabelFor(['c', 'd'], cs)).toBe('F3');
+    expect(formLabelFor(['b', 'd'], cs)).toBe('F1E, F3E');
+    expect(formLabelFor(['e'], cs)).toBe('L6 Sciences');
+    expect(formLabelFor([], cs)).toBe('');
+    // Only classes in the window that have a group for the subject are offered
+    const data = {
+      win: { forms: ['c1', 'c2'] }, forms: [{ id: 'c1', name: '3D1' }, { id: 'c2', name: '3E' }, { id: 'c9', name: '4E' }],
+      students: [{ id: 's', classId: 'c2' }],
+      groups: [{ syllabusId: 'cs', classId: 'c1' }, { syllabusId: 'cs', studentIds: ['s'] }, { syllabusId: 'cs', classId: 'c9' }, { syllabusId: 'geo', classId: 'c1' }],
+    };
+    expect(classesTakingSubject(data, 'cs').map((c) => c.name)).toEqual(['3D1', '3E']);
+  });
+});

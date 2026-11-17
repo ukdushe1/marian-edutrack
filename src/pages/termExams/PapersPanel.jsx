@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { addDoc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { Plus, X, Pencil, ShieldCheck, Printer, Lock } from 'lucide-react';
-import { papersCol, paperRef, windowSubjects } from '../../lib/termExam/model';
+import { papersCol, paperRef, windowSubjects, classesTakingSubject, formLabelFor } from '../../lib/termExam/model';
 import { TEACHING_ROLES } from '../../lib/roles';
 import { card, input, label, btn, btnGhost, Note, useExamRoles, userName } from './ui';
 
@@ -71,7 +71,13 @@ function PaperForm({ data, paper, syl, onClose }) {
     duration: paper?.duration ?? 90,
     setterId: paper?.setterId ?? [...subjectTeachers][0] ?? '',
     questions: paper?.questions ?? [{ no: '1', marks: 10, topicId: '' }],
+    classIds: paper?.classIds ?? [],
+    date: paper?.date ?? '',
+    start: paper?.start ?? '',
   });
+  // Classes that take this subject; ticking some limits the paper to them (e.g. only 3E)
+  const available = classesTakingSubject(data, syl.id);
+  const toggleClass = (id) => setF((p) => ({ ...p, classIds: p.classIds.includes(id) ? p.classIds.filter((x) => x !== id) : [...p.classIds, id] }));
   const [busy, setBusy] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
   const total = f.questions.reduce((a, q) => a + (Number(q.marks) || 0), 0);
@@ -84,6 +90,9 @@ function PaperForm({ data, paper, syl, onClose }) {
     setBusy(true);
     const payload = {
       ...f, duration: Number(f.duration), maxMark: total,
+      // Keep the class order of the window; label like the school timetable ("F3E")
+      classIds: available.map((c) => c.id).filter((id) => f.classIds.includes(id)),
+      formLabel: formLabelFor(f.classIds, available),
       questions: f.questions.map((q) => ({ no: String(q.no).trim(), marks: Number(q.marks), topicId: q.topicId || '' })),
       updatedAt: serverTimestamp(),
     };
@@ -113,6 +122,22 @@ function PaperForm({ data, paper, syl, onClose }) {
         <div className="grid grid-cols-3 gap-3">
           <div className="col-span-2"><label className={label}>Paper</label><input className={input} value={f.paper} onChange={(e) => setF({ ...f, paper: e.target.value })} required /></div>
           <div><label className={label}>Minutes</label><input type="number" className={input} value={f.duration} onChange={(e) => setF({ ...f, duration: e.target.value })} /></div>
+        </div>
+        <div>
+          <label className={label}>Sat by {f.classIds.length ? `— ${formLabelFor(f.classIds, available)}` : '— every class taking the subject'}</label>
+          <div className="flex flex-wrap gap-1.5">
+            {available.map((c) => (
+              <label key={c.id} className={`text-xs px-2.5 py-1 rounded-full border cursor-pointer select-none ${f.classIds.includes(c.id) ? 'bg-brand-600 border-brand-600 text-white' : 'border-slate-300 dark:border-slate-600'}`}>
+                <input type="checkbox" className="sr-only" checked={f.classIds.includes(c.id)} onChange={() => toggleClass(c.id)} />{c.name}
+              </label>
+            ))}
+            {!available.length && <span className="text-xs text-slate-400">No class in this window takes {syl.code}.</span>}
+          </div>
+          <p className="text-[11px] text-slate-400 mt-1">Tick only the classes that sit this paper. None ticked = every class taking {syl.code}.</p>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div><label className={label}>Date</label><input type="date" className={input} value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} /></div>
+          <div><label className={label}>Start time</label><input type="time" className={input} value={f.start} onChange={(e) => setF({ ...f, start: e.target.value })} /></div>
         </div>
         <div>
           <label className={label}>Setter</label>

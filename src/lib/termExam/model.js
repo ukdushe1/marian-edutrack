@@ -186,6 +186,31 @@ export function paperCandidates(groups, students, paper) {
   return students.filter((s) => ids.has(s.id) && paperForClass(paper, s.classId));
 }
 
+/** Classes in the window that take a subject: [{ id, name }] (window order). */
+export function classesTakingSubject(data, syllabusId) {
+  const byStudent = Object.fromEntries(data.students.map((s) => [s.id, s.classId]));
+  const ids = new Set(data.groups.filter((g) => g.syllabusId === syllabusId)
+    .flatMap((g) => (g.classId ? [g.classId] : (g.studentIds ?? []).map((id) => byStudent[id]))));
+  return data.forms.filter((f) => ids.has(f.id) && (data.win?.forms ?? []).includes(f.id));
+}
+
+const formNumber = (name) => { const n = String(name).trim().toUpperCase(); return /^L6\b/.test(n) ? 5 : /^U6\b/.test(n) ? 6 : Number(n.match(/^(?:FORM\s*)?(\d)/)?.[1]) || null; };
+
+/**
+ * Timetable-style label for the classes a paper is for: one class "F3E";
+ * every class of a form that takes the subject "F3"; otherwise the class names.
+ * @param classIds chosen class ids; available [{ id, name }] classes taking the subject
+ */
+export function formLabelFor(classIds, available) {
+  const chosen = available.filter((c) => classIds.includes(c.id));
+  if (!chosen.length) return '';
+  const tag = (name) => (/^\d/.test(name) ? `F${name}` : name);
+  if (chosen.length === 1) return tag(chosen[0].name);
+  const nums = [...new Set(chosen.map((c) => formNumber(c.name)))];
+  if (nums.length === 1 && nums[0] && available.filter((c) => formNumber(c.name) === nums[0]).length === chosen.length) return `F${nums[0]}`;
+  return chosen.map((c) => tag(c.name)).join(', ');
+}
+
 /** "4024 Paper 1 (F3)" — the form is shown when the paper is for particular forms. */
 export const paperLabel = (p) => [p.syllabusCode, p.paper, p.formLabel ? `(${p.formLabel})` : ''].filter(Boolean).join(' ');
 
