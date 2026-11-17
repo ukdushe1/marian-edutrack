@@ -8,7 +8,7 @@ import { db } from '../../firebase/config';
 import toast from 'react-hot-toast';
 import { AlertTriangle, Shuffle, Send, Armchair, X } from 'lucide-react';
 import clsx from 'clsx';
-import { paperRef, windowRef } from '../../lib/termExam/model';
+import { paperRef, windowRef, paperCandidates, paperGroups, paperLabel } from '../../lib/termExam/model';
 import { TEACHING_ROLES } from '../../lib/roles';
 import { card, btn, btnGhost, Note, useExamRoles, userName, studentName } from './ui';
 
@@ -16,10 +16,10 @@ const mins = (t) => { const [h, m] = String(t || '0:0').split(':').map(Number); 
 const overlaps = (a, b) => a.date && a.date === b.date && a.start && b.start
   && mins(a.start) < mins(b.start) + Number(b.duration || 0) && mins(b.start) < mins(a.start) + Number(a.duration || 0);
 
-/** Candidates for a paper: students in the window taught the subject. */
+/** Candidates for a paper: students in the window taught the subject, in the paper's forms. */
 export function candidatesFor(data, paper) {
-  const ids = new Set(data.groups.filter((g) => g.syllabusId === paper.syllabusId).flatMap((g) => g.studentIds ?? []));
-  return data.students.filter((s) => ids.has(s.id)).sort((a, b) => String(a.candidateNumber ?? a.surname).localeCompare(String(b.candidateNumber ?? b.surname)));
+  return paperCandidates(data.groups, data.students, paper)
+    .sort((a, b) => String(a.candidateNumber ?? a.surname).localeCompare(String(b.candidateNumber ?? b.surname)));
 }
 
 export default function TimetablePanel({ data }) {
@@ -35,8 +35,8 @@ export default function TimetablePanel({ data }) {
       if (!overlaps(a, b)) continue;
       const ca = new Set(candidatesFor(data, a).map((s) => s.id));
       const both = candidatesFor(data, b).filter((s) => ca.has(s.id)).length;
-      if (both) out.push(`${a.syllabusCode} ${a.paper} and ${b.syllabusCode} ${b.paper}: ${both} students sit both`);
-      if (a.venue && a.venue === b.venue) out.push(`${a.venue} is double-booked (${a.syllabusCode} ${a.paper} / ${b.syllabusCode} ${b.paper})`);
+      if (both) out.push(`${paperLabel(a)} and ${paperLabel(b)}: ${both} students sit both`);
+      if (a.venue && a.venue === b.venue) out.push(`${a.venue} is double-booked (${paperLabel(a)} / ${paperLabel(b)})`);
       const inv = (a.invigilatorIds ?? []).filter((x) => (b.invigilatorIds ?? []).includes(x));
       inv.forEach((u) => out.push(`${userName(users, u)} invigilates two papers at once`));
     }
@@ -57,7 +57,7 @@ export default function TimetablePanel({ data }) {
     const sorted = [...papers].filter((p) => p.date && p.start).sort((a, b) => `${a.date}${a.start}`.localeCompare(`${b.date}${b.start}`));
     for (const p of sorted) {
       const need = Math.max(1, Math.ceil(candidatesFor(data, p).length / 30));
-      const own = new Set(data.groups.filter((g) => g.syllabusId === p.syllabusId).flatMap((g) => g.teacherIds ?? []));
+      const own = new Set(paperGroups(data.groups, data.students, p).flatMap((g) => g.teacherIds ?? []));
       const busy = new Set(sorted.filter((q) => q.id !== p.id && overlaps(p, q)).flatMap((q) => planned[q.id] ?? []));
       const pick = staff.filter((u) => !own.has(u.id) && !busy.has(u.id))
         .sort((a, b) => load[a.id] - load[b.id] || (a.name ?? '').localeCompare(b.name ?? '')).slice(0, need).map((u) => u.id);
@@ -74,7 +74,7 @@ export default function TimetablePanel({ data }) {
     try {
       if (v) {
         await Promise.all(papers.map((p) => setDoc(doc(db, 'examSessions', `term_${p.id}`), {
-          syllabusId: p.syllabusId, paper: p.paper, date: p.date, start: p.start, duration: Number(p.duration),
+          syllabusId: p.syllabusId, paper: p.paper, form: p.formLabel ?? '', date: p.date, start: p.start, duration: Number(p.duration),
           venue: p.venue, seats: Number(p.seats || candidatesFor(data, p).length), invigilatorIds: p.invigilatorIds ?? [],
           windowId: win.id, examPaperId: p.id, updatedAt: serverTimestamp(),
         })));
@@ -103,13 +103,13 @@ export default function TimetablePanel({ data }) {
           <tbody>
             {papers.map((p) => (
               <tr key={p.id} className="border-b border-slate-100 dark:border-slate-700/50">
-                <td className="px-3 py-1.5 whitespace-nowrap">{p.syllabusCode} {p.paper}</td>
+                <td className="px-3 py-1.5 whitespace-nowrap">{paperLabel(p)}</td>
                 <td><input type="date" disabled={!editable} className="text-xs border rounded px-1 py-0.5 dark:bg-slate-900 dark:border-slate-600" value={p.date ?? ''} onChange={(e) => setField(p, { date: e.target.value })} /></td>
                 <td><input type="time" disabled={!editable} className="text-xs border rounded px-1 py-0.5 dark:bg-slate-900 dark:border-slate-600" value={p.start ?? ''} onChange={(e) => setField(p, { start: e.target.value })} /></td>
                 <td className="text-xs">{p.duration}</td>
                 <td><input disabled={!editable} className="w-28 text-xs border rounded px-1 py-0.5 dark:bg-slate-900 dark:border-slate-600" defaultValue={p.venue ?? ''} onBlur={(e) => e.target.value !== (p.venue ?? '') && setField(p, { venue: e.target.value.trim() })} placeholder="e.g. Main Hall" /></td>
                 <td className="text-xs text-center">{candidatesFor(data, p).length}</td>
-                <td className="text-xs">{(p.invigilatorIds ?? []).map((u) => userName(users, u)).join(', ') || <span className="text-slate-400">—</span>}</td>
+                <td className="text-xs">{[...(p.invigilatorIds ?? []).map((u) => userName(users, u)), ...(p.invigilatorNames ?? []).map((n) => `${n} (no account)`)].join(', ') || <span className="text-slate-400">—</span>}</td>
                 <td><button className="text-xs text-brand-600 hover:underline inline-flex items-center gap-1" onClick={() => setSeating(p)}><Armchair size={12} /> Seating</button></td>
               </tr>
             ))}
@@ -140,7 +140,7 @@ function SeatingPlan({ data, paper, onClose }) {
           <h2 className="font-semibold">Seating plan</h2>
           <div className="flex gap-2"><button className={btnGhost} onClick={() => window.print()}>Print</button><button onClick={onClose} className="p-1"><X size={16} /></button></div>
         </div>
-        <p className="text-sm mt-1"><strong>{paper.syllabusCode} {paper.paper}</strong> · {paper.date} {paper.start} · {paper.venue || 'Room not set'} · {cands.length} candidates · front of room at top</p>
+        <p className="text-sm mt-1"><strong>{paperLabel(paper)}</strong> · {paper.date} {paper.start} · {paper.venue || 'Room not set'} · {cands.length} candidates · front of room at top</p>
         <div className="grid gap-1.5 mt-3" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
           {cands.map((s, i) => (
             <div key={s.id} className={clsx('border rounded-lg px-1.5 py-1 text-[11px] leading-tight', 'border-slate-300 dark:border-slate-600')}>

@@ -9,7 +9,7 @@ import { db } from '../../firebase/config';
 import toast from 'react-hot-toast';
 import { Printer, Send, Loader2 } from 'lucide-react';
 import {
-  cardRef, windowRef, snapshotRef, examAssessmentRef, subjectReportId, groupFor, EFFORT_LABEL,
+  cardRef, windowRef, snapshotRef, examAssessmentRef, subjectReportId, groupFor, paperGroups, EFFORT_LABEL,
 } from '../../lib/termExam/model';
 import { formResults, loadAttendanceConduct } from '../../lib/termExam/compute';
 import { fmtPct } from '../../lib/termExam/results';
@@ -146,7 +146,7 @@ export default function ReportCardsPanel({ data }) {
         return rep && rep.status !== 'published' ? updateDoc(reportDoc(rep.id), { status: 'published', publishedBy: roles.uid, publishedAt: serverTimestamp() }).catch(() => null) : null;
       })));
       // 3. Freeze exam marks
-      await Promise.all(papers.flatMap((p) => groups.filter((g) => g.syllabusId === p.syllabusId)
+      await Promise.all(papers.flatMap((p) => paperGroups(groups, data.students, p)
         .map((g) => updateDoc(examAssessmentRef(g.id, p.id), { frozen: true }).catch(() => null))));
       await updateDoc(windowRef(win.id), { published: true, publishedAt: serverTimestamp(), publishedBy: roles.uid, version, unlockedFrom: null });
       toast.success(`Published (version ${version}). Marks are now frozen.`);

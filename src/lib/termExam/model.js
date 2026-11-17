@@ -9,6 +9,8 @@
  *                        approved/approvedBy, timetablePublished, resultsChecked/checkedBy,
  *                        published/publishedAt/version, formNotes {[formId]: note}
  *   examPapers/{id}      windowId, syllabusId, syllabusCode, paper, maxMark, duration,
+ *                        classIds[] (forms that sit it; empty = every form taking the subject),
+ *                        formLabel (as printed on the school timetable, e.g. "F3D1"), importKey,
  *                        questions [{no, marks, topicId}], setterId, status draft|vetted|printed,
  *                        vettedBy, date, start, venue, seats, invigilatorIds[], attendanceSubmitted
  *   examSittings/{paperId}_{studentId}   paperId, windowId, studentId, status, note
@@ -132,7 +134,7 @@ export function useWindowData(windowId) {
 
       // Exam assessments + marks for each paper × group of its subject
       const assessments = {}, marks = {};
-      await Promise.all(papers.flatMap((p) => groups.filter((g) => g.syllabusId === p.syllabusId).map(async (g) => {
+      await Promise.all(papers.flatMap((p) => paperGroups(groups, students, p).map(async (g) => {
         const [a, m] = await Promise.all([getDoc(examAssessmentRef(g.id, p.id)), getDoc(examMarksRef(g.id, p.id))]);
         const key = `${p.id}|${g.id}`;
         if (a.exists()) assessments[key] = { id: a.id, ...a.data() };
@@ -162,6 +164,30 @@ export function useWindowData(windowId) {
     ...(base ?? { students: [], forms: [], groups: [], syllabi: [], sittings: {}, users: [], assessments: {}, marks: {}, reports: {}, cards: {} }),
   };
 }
+
+/**
+ * Does a paper apply to students in this form (student.classId)? Papers carry
+ * classIds when one subject has a different paper per form (F1 vs F2 Geography);
+ * a paper without classIds is sat by every form taking the subject.
+ */
+export const paperForClass = (paper, classId) => !paper?.classIds?.length || paper.classIds.includes(classId);
+
+/** Teaching groups that sit a paper: its subject's groups with a student in the paper's forms. */
+export function paperGroups(groups, students, paper) {
+  const sameSubject = groups.filter((g) => g.syllabusId === paper.syllabusId);
+  if (!paper.classIds?.length) return sameSubject;
+  const inForms = new Set(students.filter((s) => paper.classIds.includes(s.classId)).map((s) => s.id));
+  return sameSubject.filter((g) => (g.studentIds ?? []).some((id) => inForms.has(id)));
+}
+
+/** Students who sit a paper: in one of its groups, and in one of its forms. */
+export function paperCandidates(groups, students, paper) {
+  const ids = new Set(paperGroups(groups, students, paper).flatMap((g) => g.studentIds ?? []));
+  return students.filter((s) => ids.has(s.id) && paperForClass(paper, s.classId));
+}
+
+/** "4024 Paper 1 (F3)" — the form is shown when the paper is for particular forms. */
+export const paperLabel = (p) => [p.syllabusCode, p.paper, p.formLabel ? `(${p.formLabel})` : ''].filter(Boolean).join(' ');
 
 /** Subjects in the window: syllabi that have a group with a student in the window's forms. */
 export function windowSubjects(data) {
@@ -196,7 +222,7 @@ export function stageStatus(data, syllabusId, stageKey) {
   const { win, papers, groups, students, assessments, reports, cards } = data;
   const sp = papers.filter((p) => p.syllabusId === syllabusId);
   const sg = groups.filter((g) => g.syllabusId === syllabusId);
-  const pairs = sp.flatMap((p) => sg.map((g) => assessments[`${p.id}|${g.id}`]));
+  const pairs = sp.flatMap((p) => paperGroups(groups, students, p).map((g) => assessments[`${p.id}|${g.id}`]));
   let done = false, started = false;
   switch (stageKey) {
     case 'setup': done = !!win.approved; started = true; break;

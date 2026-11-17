@@ -5,7 +5,7 @@ import { db } from '../../firebase/config';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import { CheckCircle2 } from 'lucide-react';
-import { paperRef, sittingRef, SITTING_STATUS } from '../../lib/termExam/model';
+import { paperRef, sittingRef, SITTING_STATUS, paperLabel } from '../../lib/termExam/model';
 import { candidatesFor } from './TimetablePanel';
 import { card, btn, Note, useExamRoles, studentName } from './ui';
 
@@ -57,7 +57,7 @@ export default function SittingPanel({ data }) {
     <div className="space-y-3 max-w-3xl">
       <div className="flex flex-wrap items-center gap-2">
         <select className="text-sm border rounded-lg px-2.5 py-1.5 dark:bg-slate-800 dark:border-slate-600" value={paperId} onChange={(e) => { setPaperId(e.target.value); setLocal({}); }}>
-          {papers.map((p) => <option key={p.id} value={p.id}>{p.syllabusCode} {p.paper} — {p.date} {p.start}{(p.invigilatorIds ?? []).includes(roles.uid) ? ' (you invigilate)' : ''}{p.attendanceSubmitted ? ' ✓' : ''}</option>)}
+          {papers.map((p) => <option key={p.id} value={p.id}>{paperLabel(p)} — {p.date} {p.start}{(p.invigilatorIds ?? []).includes(roles.uid) ? ' (you invigilate)' : ''}{p.attendanceSubmitted ? ' ✓' : ''}</option>)}
         </select>
         <span className="text-xs text-slate-500">{SITTING_STATUS.map((s) => `${counts[s.key]} ${s.short}`).join(' · ')}</span>
       </div>

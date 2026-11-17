@@ -9,7 +9,7 @@ import { db } from '../../firebase/config';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import { ArrowLeft, Send, Lock, Loader2 } from 'lucide-react';
-import { paperRef, windowRef, examAssessmentRef, examMarksRef } from '../../lib/termExam/model';
+import { paperRef, windowRef, examAssessmentRef, examMarksRef, paperForClass, paperLabel } from '../../lib/termExam/model';
 import { writeAuditLog } from '../../firebase/firestore';
 import { useStudents } from '../../hooks/useStudents';
 import { card, btn, Note, useExamRoles, studentName } from './ui';
@@ -37,7 +37,9 @@ export default function MarkingGrid() {
   }, [windowId, paperId, groupId]);
 
   const { students: all } = useStudents(group?.studentIds ?? []);
-  const students = useMemo(() => (win?.forms ? all.filter((s) => win.forms.includes(s.classId)) : all), [all, win]);
+  // Window's forms, and only the forms this paper is for (F1 Geography is not marked for F2 students)
+  const students = useMemo(() => all.filter((s) => (!win?.forms || win.forms.includes(s.classId)) && paperForClass(paper, s.classId)),
+    [all, win, paper]);
 
   // Create the markbook entry for this paper on first open (appears in the normal Markbook too)
   useEffect(() => {
@@ -99,7 +101,7 @@ export default function MarkingGrid() {
   return (
     <div className="space-y-3 max-w-6xl">
       <Link to={`/exams/term/${windowId}?tab=marking`} className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-brand-600"><ArrowLeft size={12} /> {win.name}</Link>
-      <h1 className="text-xl font-bold">{paper.syllabusCode} {paper.paper} · {group.name}</h1>
+      <h1 className="text-xl font-bold">{paperLabel(paper)} · {group.name}</h1>
       <p className="text-sm text-slate-500">{paper.maxMark} marks · {qs.length} questions · {present.length} of {students.length} sat</p>
       {assess?.moderation === 'returned' && !assess?.submitted && <Note tone="warn">Returned by the HOD: “{assess.moderationNote || 'please review'}”. Correct the marks and submit again.</Note>}
       {assess?.submitted && !locked && <Note tone="ok">Submitted for moderation{isTeacher ? ' — you can no longer change marks unless the HOD returns them.' : '.'}</Note>}

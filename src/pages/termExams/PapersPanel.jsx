@@ -42,8 +42,8 @@ export default function PapersPanel({ data }) {
               return (
                 <div key={p.id} className="flex flex-wrap items-center gap-2 border-t border-slate-100 dark:border-slate-700 pt-2 text-sm">
                   <div className="flex-1 min-w-[12rem]">
-                    <p className="font-medium">{p.paper} <span className="text-xs text-slate-400">· {p.maxMark} marks · {p.duration} min · {p.questions?.length ?? 0} questions</span></p>
-                    <p className="text-xs text-slate-500">Setter: {userName(users, p.setterId)} · {STATUS[p.status] ?? p.status}{p.vettedBy ? ` by ${userName(users, p.vettedBy)}` : ''}</p>
+                    <p className="font-medium">{p.paper}{p.formLabel ? ` (${p.formLabel})` : ''} <span className="text-xs text-slate-400">· {p.date ? `${p.date} ${p.start} · ` : ''}{p.maxMark} marks · {p.duration ?? '?'} min · {p.questions?.length ?? 0} questions</span></p>
+                    <p className="text-xs text-slate-500">Setter: {p.setterId ? userName(users, p.setterId) : 'not chosen yet'} · {STATUS[p.status] ?? p.status}{p.vettedBy ? ` by ${userName(users, p.vettedBy)}` : ''}</p>
                   </div>
                   {canEdit && <button className={btnGhost} onClick={() => setEditing(p)}><Pencil size={12} /> Edit</button>}
                   {p.status === 'draft' && roles.hodOf(s.code) && <button className={btn} onClick={() => setStatus(p, 'vetted')}><ShieldCheck size={13} /> Mark vetted</button>}

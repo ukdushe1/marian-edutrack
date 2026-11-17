@@ -4,7 +4,7 @@
 import { collection, getDocs, query, where, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { computeForm, averagePercent } from './results';
-import { windowSubjects, subjectWeights, groupFor, DEFAULT_BANDS } from './model';
+import { windowSubjects, subjectWeights, groupFor, paperForClass, DEFAULT_BANDS } from './model';
 
 const COURSEWORK_COMPONENTS = /course\s*work|practical|project|school[-\s]?based|\bsba\b/i;
 
@@ -50,7 +50,8 @@ export function formResults(data, formId, coursework = {}) {
     code: syl.code,
     name: syl.name,
     weights: subjectWeights(win, syl),
-    papers: papers.filter((p) => p.syllabusId === syl.id).map((p) => ({ id: p.id, maxMark: Number(p.maxMark) || 0 })),
+    // Only this form's papers: F1 students are not marked absent from the F2 Geography paper
+    papers: papers.filter((p) => p.syllabusId === syl.id && paperForClass(p, formId)).map((p) => ({ id: p.id, maxMark: Number(p.maxMark) || 0 })),
   })).filter((s) => s.papers.length > 0);
 
   const takes = {};

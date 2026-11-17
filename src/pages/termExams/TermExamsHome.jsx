@@ -7,6 +7,7 @@ import { ClipboardCheck, Plus, ChevronRight, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { windowsCol, DEFAULT_BANDS, deriveForms, STAGES } from '../../lib/termExam/model';
 import { card, input, label, btn, useExamRoles } from './ui';
+import SetupFromTimetable from './SetupFromTimetable';
 
 export default function TermExamsHome() {
   const roles = useExamRoles();
@@ -25,6 +26,8 @@ export default function TermExamsHome() {
         </div>
         {roles.canManage && <button className={btn} onClick={() => setCreating(true)}><Plus size={15} /> New exam window</button>}
       </div>
+
+      {roles.canManage && <SetupFromTimetable />}
 
       <div className="space-y-2">
         {windows.map((w) => (

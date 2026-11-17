@@ -7,7 +7,7 @@ import { updateDoc, serverTimestamp } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import { CheckCircle2, Undo2, AlertTriangle } from 'lucide-react';
-import { examAssessmentRef, windowSubjects } from '../../lib/termExam/model';
+import { examAssessmentRef, windowSubjects, paperGroups, paperLabel } from '../../lib/termExam/model';
 import { card, btn, btnGhost, Note, useExamRoles, studentName } from './ui';
 
 function stats(vals) {
@@ -55,7 +55,7 @@ export default function ModerationPanel({ data }) {
     <div className="space-y-4 max-w-5xl">
       <Note>Check a sample of scripts in each class (tick them below), compare the classes, then accept and lock the marks or return them with a note. A class whose average is more than 10 points from the paper average, and students more than 2 standard deviations from their class, are flagged.</Note>
       {subjects.map((s) => papers.filter((p) => p.syllabusId === s.id).map((p) => {
-        const gs = groups.filter((g) => g.syllabusId === s.id);
+        const gs = paperGroups(groups, students, p);
         const perClass = gs.map((g) => {
           const ent = marks[`${p.id}|${g.id}`] ?? {};
           const vals = Object.entries(ent).filter(([sid, e]) => winStudents.has(sid) && e?.raw != null).map(([sid, e]) => ({ sid, pct: (e.raw / p.maxMark) * 100 }));
@@ -64,7 +64,7 @@ export default function ModerationPanel({ data }) {
         const all = stats(perClass.flatMap((c) => c.vals.map((v) => v.pct)));
         return (
           <section key={p.id} className={`${card} p-4 space-y-3`}>
-            <p className="font-semibold text-sm">{s.code} {p.paper} <span className="text-xs font-normal text-slate-400">· paper average {all ? `${all.mean.toFixed(1)}%` : '—'}</span></p>
+            <p className="font-semibold text-sm">{paperLabel(p)} <span className="text-xs font-normal text-slate-400">· paper average {all ? `${all.mean.toFixed(1)}%` : '—'}</span></p>
             {perClass.map(({ g, a, vals, st }) => {
               const key = `${p.id}|${g.id}`;
               const off = st && all && Math.abs(st.mean - all.mean) > 10;

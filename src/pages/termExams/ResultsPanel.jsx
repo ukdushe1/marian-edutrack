@@ -7,7 +7,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { updateDoc, serverTimestamp } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { CheckCircle2, AlertTriangle, Loader2, Unlock } from 'lucide-react';
-import { windowRef, examAssessmentRef, windowSubjects } from '../../lib/termExam/model';
+import { windowRef, examAssessmentRef, windowSubjects, paperGroups } from '../../lib/termExam/model';
 import { formResults, loadCoursework } from '../../lib/termExam/compute';
 import { fmtPct } from '../../lib/termExam/results';
 import { writeAuditLog } from '../../firebase/firestore';
@@ -40,7 +40,7 @@ export default function ResultsPanel({ data }) {
 
   if (!all) return <p className="flex items-center gap-2 text-sm text-slate-400"><Loader2 size={14} className="animate-spin" /> Calculating results…</p>;
 
-  const pairs = papers.flatMap((p) => groups.filter((g) => g.syllabusId === p.syllabusId).map((g) => assessments[`${p.id}|${g.id}`]));
+  const pairs = papers.flatMap((p) => paperGroups(groups, data.students, p).map((g) => assessments[`${p.id}|${g.id}`]));
   const allLocked = pairs.length > 0 && pairs.every((a) => a?.locked);
   const blocking = Object.values(all).flatMap((r) => r.flags.filter((f) => f.type !== 'malpractice'));
   const res = all[formId];
@@ -57,7 +57,7 @@ export default function ResultsPanel({ data }) {
     if (!unlock.subject || unlock.reason.trim().length < 5) { toast.error('Choose a subject and give a reason.'); return; }
     try {
       const sp = papers.filter((p) => p.syllabusId === unlock.subject);
-      await Promise.all(sp.flatMap((p) => groups.filter((g) => g.syllabusId === p.syllabusId)
+      await Promise.all(sp.flatMap((p) => paperGroups(groups, data.students, p)
         .map((g) => updateDoc(examAssessmentRef(g.id, p.id), { frozen: false, locked: false, moderation: null }).catch(() => null))));
       await updateDoc(windowRef(win.id), { published: false, resultsChecked: false, unlockedFrom: win.version ?? 1 });
       await writeAuditLog(roles.uid, 'examWindows', win.id, { published: true, version: win.version ?? 1 },

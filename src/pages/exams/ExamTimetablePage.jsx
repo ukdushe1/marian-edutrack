@@ -11,16 +11,14 @@ import {
   query, orderBy, getDocs, now, syllabiCol, usersCol,
 } from '../../firebase/firestore';
 import { db } from '../../firebase/config';
-import { doc, writeBatch } from 'firebase/firestore';
+import { doc } from 'firebase/firestore';
 import {
-  Calendar, Plus, X, AlertTriangle, Clock, MapPin, Users, Pencil, Trash2, Upload,
+  Calendar, Plus, X, AlertTriangle, Clock, MapPin, Users, Pencil, Trash2,
 } from 'lucide-react';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
 import { TEACHING_ROLES } from '../../lib/roles';
 import { format, parseISO, addMinutes } from 'date-fns';
-import { useAuth } from '../../contexts/AuthContext';
-import { SESSIONS as EOY2026, TIMETABLE_NAME as EOY2026_NAME } from '../../lib/examTimetable/endOfYear2026';
 
 const sessionsCol  = () => col('examSessions');
 
@@ -37,10 +35,6 @@ export default function ExamTimetablePage() {
   const [showForm,  setShowForm]  = useState(false);
   const [editing,   setEditing]   = useState(null);
   const [view,      setView]      = useState('list'); // 'list' | 'calendar'
-  const [importing, setImporting] = useState(false);
-  const { hasRole } = useAuth();
-  const canImport = hasRole('examsOfficer', 'vicePrincipal', 'superAdmin', 'principal', 'head');
-  const importedCount = sessions.filter((s) => s.timetableId === 'eoy2026').length;
 
   useEffect(() => {
     const unsub = onSnapshot(query(sessionsCol(), orderBy('date', 'asc')), (s) =>
@@ -82,22 +76,6 @@ export default function ExamTimetablePage() {
 
   const syllabus = (id) => syllabi.find((s) => s.id === id);
 
-  /** Write the End of Year 2026 timetable. Stable ids: re-importing overwrites, never duplicates. */
-  async function importEoy2026() {
-    const again = importedCount > 0;
-    if (!confirm(again
-      ? `Re-import ${EOY2026_NAME}? This overwrites its ${EOY2026.length} sessions, including any edits made to them. Other sessions are not touched.`
-      : `Import ${EOY2026_NAME} (${EOY2026.length} sessions, 16–20 Nov)? Other sessions are not touched.`)) return;
-    setImporting(true);
-    try {
-      const batch = writeBatch(db);
-      EOY2026.forEach(({ id, ...data }) => batch.set(doc(db, 'examSessions', id), { ...data, createdAt: now(), updatedAt: now() }));
-      await batch.commit();
-      toast.success(`${EOY2026.length} sessions imported.`);
-    } catch { toast.error('Import failed. Only the exams officer, Principal or VP can import.'); }
-    setImporting(false);
-  }
-
   return (
     <div className="max-w-3xl space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -106,12 +84,6 @@ export default function ExamTimetablePage() {
           <p className="text-sm text-slate-500 dark:text-slate-400">{sessions.length} sessions scheduled</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {canImport && (
-            <button onClick={importEoy2026} disabled={importing}
-              className="flex items-center gap-1.5 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-60 text-sm font-medium px-3 py-2 rounded-lg transition-colors">
-              <Upload size={15}/> {importing ? 'Importing…' : importedCount ? 'Re-import End of Year 2026' : 'Import End of Year 2026'}
-            </button>
-          )}
           <div className="flex border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
             {['list', 'calendar'].map((v) => (
               <button key={v} onClick={() => setView(v)}

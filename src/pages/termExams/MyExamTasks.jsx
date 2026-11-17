@@ -5,7 +5,7 @@ import { getDocs, getDoc, query, where, collection } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { ListTodo, Loader2 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { examAssessmentRef } from '../../lib/termExam/model';
+import { examAssessmentRef, paperGroups, paperLabel } from '../../lib/termExam/model';
 import { card, Note } from './ui';
 
 export default function MyExamTasks() {
@@ -20,18 +20,21 @@ export default function MyExamTasks() {
         .docs.map((d) => ({ id: d.id, ...d.data() })).filter((w) => w.approved);
       const myGroups = (await getDocs(query(collection(db, 'teachingGroups'), where('teacherIds', 'array-contains', uid))))
         .docs.map((d) => ({ id: d.id, ...d.data() }));
+      // Students' forms, to tell which of my groups sit a form-specific paper
+      const students = myGroups.length && wins.length
+        ? (await getDocs(collection(db, 'students'))).docs.map((d) => ({ id: d.id, ...d.data() })) : [];
       const out = [];
       for (const w of wins) {
         const papers = (await getDocs(query(collection(db, 'examPapers'), where('windowId', '==', w.id)))).docs.map((d) => ({ id: d.id, ...d.data() }));
         const due = (k) => w.stageDue?.[k] ?? '';
         for (const p of papers) {
-          if (p.setterId === uid && p.status === 'draft') out.push({ w, kind: 'Set paper', what: `${p.syllabusCode} ${p.paper} — build the question layout for vetting`, due: due('papers'), to: `/exams/term/${w.id}?tab=papers` });
-          if ((p.invigilatorIds ?? []).includes(uid) && !p.attendanceSubmitted && w.timetablePublished) out.push({ w, kind: 'Invigilate', what: `${p.syllabusCode} ${p.paper} — ${p.date} ${p.start}, ${p.venue}: take attendance`, due: p.date ?? '', to: `/exams/term/${w.id}?tab=sitting` });
+          if (p.setterId === uid && p.status === 'draft') out.push({ w, kind: 'Set paper', what: `${paperLabel(p)} — build the question layout for vetting`, due: due('papers'), to: `/exams/term/${w.id}?tab=papers` });
+          if ((p.invigilatorIds ?? []).includes(uid) && !p.attendanceSubmitted && w.timetablePublished) out.push({ w, kind: 'Invigilate', what: `${paperLabel(p)} — ${p.date} ${p.start}, ${p.venue}: take attendance`, due: p.date ?? '', to: `/exams/term/${w.id}?tab=sitting` });
           if (!p.attendanceSubmitted) continue;
-          for (const g of myGroups.filter((x) => x.syllabusId === p.syllabusId)) {
+          for (const g of paperGroups(myGroups, students, p)) {
             const a = await getDoc(examAssessmentRef(g.id, p.id));
             const d = a.exists() ? a.data() : null;
-            if (!d?.submitted && !d?.locked) out.push({ w, kind: d?.moderation === 'returned' ? 'Re-mark (returned)' : 'Mark scripts', what: `${p.syllabusCode} ${p.paper} · ${g.name}${d?.moderationNote ? ` — HOD: “${d.moderationNote}”` : ''}`, due: due('marking'), to: `/exams/term/${w.id}/mark/${p.id}/${g.id}` });
+            if (!d?.submitted && !d?.locked) out.push({ w, kind: d?.moderation === 'returned' ? 'Re-mark (returned)' : 'Mark scripts', what: `${paperLabel(p)} · ${g.name}${d?.moderationNote ? ` — HOD: “${d.moderationNote}”` : ''}`, due: due('marking'), to: `/exams/term/${w.id}/mark/${p.id}/${g.id}` });
           }
         }
         if (w.resultsChecked && w.termId && myGroups.length) {
