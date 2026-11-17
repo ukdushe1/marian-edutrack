@@ -7,6 +7,7 @@
  * Subjects: "Computer Science / ICT" = whichever of the two each class takes.
  */
 import { subjectKey, subjectAt, formOf } from '../schoolSetup/schoolSetup';
+import { TEACHING_ROLES } from '../roles';
 
 const norm = (s) => String(s ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 
@@ -21,11 +22,12 @@ export function classesForForm(label, classes) {
 }
 
 /**
- * Who can invigilate: accounts with a staff role (any role except parent) —
- * the same people firestore.rules lets take attendance. Staff with no role
- * yet are left out until they are given one in Users.
+ * Who can invigilate: teaching staff (Teacher, Class teacher, HOD, VP, Principal)
+ * and the exams officer. Admin-only, boarding-only and role-less accounts are
+ * left out until they are given a teaching role in Users.
  */
-export const staffAccounts = (users) => users.filter((u) => (u.roles ?? []).some((r) => r !== 'parent'));
+export const INVIGILATOR_ROLES = [...TEACHING_ROLES, 'examsOfficer'];
+export const staffAccounts = (users) => users.filter((u) => (u.roles ?? []).some((r) => INVIGILATOR_ROLES.includes(r)));
 
 /** Staff whose name contains this surname as a whole word. */
 export function staffBySurname(surname, users) {

@@ -136,7 +136,7 @@ export default function SetupFromTimetable() {
                   );
                 })}
               </div>
-              <p className="text-xs text-slate-500 mt-1.5">Only accounts with a staff role are listed. Someone missing? Give them a role (e.g. Teacher) in Users, then open this again.</p>
+              <p className="text-xs text-slate-500 mt-1.5">Only teaching staff and the exams officer are listed. Someone missing? Give them a teaching role (e.g. Teacher) in Users, then open this again.</p>
               {unresolved.length > 0 && <p className="text-xs text-slate-500 mt-1.5">{unresolved.length} name{unresolved.length > 1 ? 's are' : ' is'} not linked to a staff account. They still show on the timetable, but won’t get invigilation tasks until linked (run this again after adding them in Users).</p>}
             </div>
 

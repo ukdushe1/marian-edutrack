@@ -60,7 +60,7 @@ describe('timetable → papers', () => {
   ];
   const row = (id, form, subject, paper = '', names = []) => ({ id, date: '2026-11-20', slot: 'Morning', start: '08:00', form, subject, paper, duration: 90, invigilatorNames: names });
   const users = [{ id: 'u1', name: 'Mr Nare', roles: [] }, { id: 'u2', name: 'T Moyo', roles: ['teacher'] }, { id: 'u3', name: 'K Moyo', roles: ['superAdmin'] },
-    { id: 'u4', name: 'P Zishura', roles: ['parent'] }];
+    { id: 'u4', name: 'P Zishura', roles: ['parent'] }, { id: 'u5', name: 'B Nehoma', roles: ['boardingMaster'] }];
 
   it('reads form labels: F1 = all Form 1, F1D = that class, F5 = L6', () => {
     expect(classesForForm('F1', classes).map((c) => c.name)).toEqual(['1D', '1E']);
@@ -70,7 +70,7 @@ describe('timetable → papers', () => {
 
   it('splits "Computer Science / ICT" by what each class takes, uses A Level for F5, skips what nobody takes', () => {
     const plan = planTimetableImport({ windowId: 'w', classes, groups: tg, users, sessions: [
-      row('r1', 'F3', 'Computer Science / ICT', '', ['Nare', 'Moyo', 'Zishura']),
+      row('r1', 'F3', 'Computer Science / ICT', '', ['Nare', 'Moyo', 'Zishura', 'Nehoma']),
       row('r2', 'F5', 'Maths', 'Pure P1'),
       row('r3', 'F1D', 'Economics'),
       row('r4', 'F1E', 'Agriculture'),
@@ -80,11 +80,11 @@ describe('timetable → papers', () => {
     ]);
     expect(plan.papers[2].data.paper).toBe('Pure P1');
     expect(plan.skipped.map((s) => s.reason)).toEqual(['no F1E class takes Agriculture']);
-    // Only accounts with a staff role: Nare has no role yet and a parent is never an
-    // invigilator; two staff called Moyo is left for the officer to choose
-    expect(plan.invigilators).toEqual({ Nare: null, Moyo: null, Zishura: null });
-    expect(plan.ambiguous.Moyo).toHaveLength(2);
-    expect(plan.papers[0].data.invigilatorNames).toEqual(['Nare', 'Moyo', 'Zishura']);
+    // Teaching staff only: Nare has no role, Zishura is a parent, Nehoma is boarding-only,
+    // K Moyo is admin-only — so the one teaching Moyo links
+    expect(plan.invigilators).toEqual({ Nare: null, Moyo: 'u2', Zishura: null, Nehoma: null });
+    expect(plan.ambiguous).toEqual({});
+    expect(plan.papers[0].data.invigilatorNames).toEqual(['Nare', 'Zishura', 'Nehoma']);
     expect(plan.classIds.sort()).toEqual(['k1d', 'k1e', 'k3d1', 'k3g', 'kl6s'].sort());
   });
 });
