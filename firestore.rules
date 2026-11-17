@@ -135,6 +135,8 @@ service cloud.firestore {
       allow read:  if isStaff();
       allow create: if isStaff();
       allow update: if isAdmin();
+      // Real conduct records are never deleted; only test data can be cleared
+      allow delete: if isAdmin() && resource.data.get('testData', false) == true;
     }
 
     // ── audit log — append-only ───────────────────────────────────────────

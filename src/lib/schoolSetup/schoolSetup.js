@@ -75,6 +75,9 @@ const A_LEVEL_COMPONENTS = {
   COMP: [{ paper: 'Theory', weight: 50, maxMark: 100 }, { paper: 'Practical', weight: 50, maxMark: 100 }],
 };
 
+/** School term from the month: Jan–Apr term 1, May–Aug term 2, Sep–Dec term 3. */
+export const termOfMonth = (month) => (month <= 3 ? 1 : month <= 7 ? 2 : 3);
+
 /** Lower-cases row keys so "firstName" / "FirstName" / "first name" all work. */
 const normRow = (r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [k.toLowerCase().replace(/[^a-z]/g, ''), typeof v === 'string' ? v.trim() : v]));
 
@@ -82,10 +85,11 @@ const normRow = (r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [k.t
  * Turn the workbook's rows into the documents to write, plus anything to check.
  * @param studentRows rows of the "Students" sheet
  * @param subjectRows rows of the "Subjects" sheet
- * @returns { classes, syllabi, students, groups, warnings, errors }
+ * @returns { terms, classes, syllabi, students, groups, warnings, errors }
+ *   terms: the current term (exam windows and reports hang off it)
  *   each doc list is [{ path, data }]
  */
-export function planSchoolSetup(studentRows, subjectRows, { year = new Date().getFullYear() } = {}) {
+export function planSchoolSetup(studentRows, subjectRows, { year = new Date().getFullYear(), term = termOfMonth(new Date().getMonth()) } = {}) {
   const errors = [], warnings = [];
   const students = [], classes = new Map(), syllabi = new Map(), groups = [];
   const byClass = new Map();
@@ -157,5 +161,6 @@ export function planSchoolSetup(studentRows, subjectRows, { year = new Date().ge
   }
   for (const cls of subjectsByClass.keys()) if (!byClass.has(cls)) warnings.push(`${cls} is on the Subjects sheet but has no students.`);
 
-  return { classes: [...classes.values()], syllabi: [...syllabi.values()], students, groups, warnings, errors };
+  const terms = [{ path: `terms/mhs-${year}-t${term}`, data: { year, term, name: `Term ${term} ${year}`, isCurrent: true, source: 'schoolSetup' } }];
+  return { terms, classes: [...classes.values()], syllabi: [...syllabi.values()], students, groups, warnings, errors };
 }

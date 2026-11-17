@@ -6,7 +6,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, it, beforeAll, afterAll, beforeEach } from 'vitest';
 import { initializeTestEnvironment, assertSucceeds, assertFails } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc, updateDoc, addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, serverTimestamp } from 'firebase/firestore';
 
 let env;
 const USERS = {
@@ -114,6 +114,18 @@ describe('HOD scope: only their own subjects', () => {
     await assertFails(entry(as('hod'), 'g2'));
     await assertSucceeds(entry(as('teacher2'), 'g2'));
     await assertFails(entry(as('teacher'), 'g2'));
+  });
+});
+
+describe('conduct', () => {
+  it('only test conduct records can be deleted, and only by the Principal / System Admin', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'conduct/real'), { studentId: 's1', type: 'demerit' });
+      await setDoc(doc(ctx.firestore(), 'conduct/test'), { studentId: 's1', type: 'merit', testData: true });
+    });
+    await assertFails(deleteDoc(doc(as('admin'), 'conduct/real')));
+    await assertFails(deleteDoc(doc(as('vp'), 'conduct/test')));
+    await assertSucceeds(deleteDoc(doc(as('admin'), 'conduct/test')));
   });
 });
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { planSchoolSetup, subjectKey, formOf, titleCase } from '../src/lib/schoolSetup/schoolSetup';
+import { planSchoolSetup, subjectKey, formOf, titleCase, termOfMonth } from '../src/lib/schoolSetup/schoolSetup';
 
 // Made-up names only — real class lists are never committed
 const students = [
@@ -33,6 +33,12 @@ describe('school setup import', () => {
     expect(g.data).toMatchObject({ name: '1D Mathematics', syllabusId: 'mhs-0580', syllabusCode: '0580', studentIds: ['mhs-1d-001', 'mhs-1d-002'] });
     expect(plan.groups.find((x) => x.path === 'teachingGroups/mhs-3d1-eng').data.syllabusId).toBe('mhs-0500');
     expect(plan.syllabi.find((s) => s.data.code === '9709').data.components.map((c) => c.paper)).toEqual(['Pure Mathematics', 'Statistics']);
+  });
+  it('adds the current term (November → Term 3)', () => {
+    expect(planSchoolSetup(students, subjects, { year: 2026, term: 3 }).terms).toEqual([
+      { path: 'terms/mhs-2026-t3', data: expect.objectContaining({ year: 2026, term: 3, name: 'Term 3 2026', isCurrent: true }) },
+    ]);
+    expect([0, 3, 4, 7, 8, 10].map((m) => termOfMonth(m))).toEqual([1, 1, 2, 2, 3, 3]);
   });
   it('never sets teacherIds, so re-importing keeps assigned teachers', () => {
     expect(plan.groups.every((x) => !('teacherIds' in x.data))).toBe(true);

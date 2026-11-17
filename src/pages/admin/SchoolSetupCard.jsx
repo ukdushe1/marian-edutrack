@@ -37,7 +37,7 @@ export default function SchoolSetupCard() {
   }
 
   async function doImport() {
-    const all = [...plan.classes, ...plan.syllabi, ...plan.students, ...plan.groups];
+    const all = [...plan.terms, ...plan.classes, ...plan.syllabi, ...plan.students, ...plan.groups];
     setBusy(true); setProgress({ n: 0, total: all.length });
     try {
       for (let i = 0; i < all.length; i += 400) {
@@ -54,7 +54,7 @@ export default function SchoolSetupCard() {
         const used = await getDocs(query(collection(db, 'teachingGroups'), where('syllabusId', '==', d.id)));
         if (used.empty) { await deleteDoc(d.ref); removed++; }
       }
-      setDone(`Imported ${plan.classes.length} classes, ${plan.syllabi.length} subjects, ${plan.students.length} students and ${plan.groups.length} teaching groups.${removed ? ` Removed ${removed} old subjects that no class uses now.` : ''}`);
+      setDone(`Imported ${plan.terms[0].data.name} as the current term, ${plan.classes.length} classes, ${plan.syllabi.length} subjects, ${plan.students.length} students and ${plan.groups.length} teaching groups.${removed ? ` Removed ${removed} old subjects that no class uses now.` : ''}`);
       setPlan(null);
       toast.success('School setup imported.');
     } catch (e) {
@@ -88,7 +88,7 @@ export default function SchoolSetupCard() {
 
       {plan && (
         <div className="space-y-3">
-          <p className="text-sm"><strong>{fileName}</strong>: {plan.classes.length} classes · {plan.syllabi.length} subjects · {plan.students.length} students · {plan.groups.length} teaching groups</p>
+          <p className="text-sm"><strong>{fileName}</strong>: {plan.terms[0].data.name} (current term) · {plan.classes.length} classes · {plan.syllabi.length} subjects · {plan.students.length} students · {plan.groups.length} teaching groups</p>
           {plan.errors.length > 0 && (
             <div className="text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/20 rounded-lg p-3">
               <p className="font-semibold">Fix these in the file first:</p>
