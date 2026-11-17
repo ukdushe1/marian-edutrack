@@ -68,10 +68,11 @@ export default function TimetablePanel({ data }) {
     toast.success('Invigilators assigned. Unscheduled papers were skipped.');
   }
 
-  async function publish(v) {
+  async function publish(v, { ignoreClashes = false } = {}) {
     // Rooms are optional: they can be added after publishing
     if (v && papers.some((p) => !p.date || !p.start)) { toast.error('Every paper needs a date and start time first.'); return; }
-    if (v && clashes.length) { toast.error('Resolve the clashes first.'); return; }
+    if (v && clashes.length && !ignoreClashes) { toast.error('Resolve the clashes first, or use “Publish anyway”.'); return; }
+    if (v && ignoreClashes && !confirm(`Publish with ${clashes.length} clash${clashes.length > 1 ? 'es' : ''} still listed? Staff will see the timetable as it is.`)) return;
     try {
       if (v) {
         await Promise.all(papers.map((p) => setDoc(doc(db, 'examSessions', `term_${p.id}`), {
@@ -80,7 +81,12 @@ export default function TimetablePanel({ data }) {
           windowId: win.id, examPaperId: p.id, updatedAt: serverTimestamp(),
         })));
       }
-      await updateDoc(windowRef(win.id), { timetablePublished: v });
+      // Record when clashes were knowingly ignored, so the sign-off shows it
+      await updateDoc(windowRef(win.id), {
+        timetablePublished: v,
+        clashesIgnored: v && ignoreClashes ? clashes.length : 0,
+        clashesIgnoredBy: v && ignoreClashes ? roles.uid : null,
+      });
       toast.success(v ? 'Timetable published to staff (also on Exams → Timetable).' : 'Timetable unpublished.');
     } catch { toast.error('Publish failed.'); }
   }
@@ -89,7 +95,7 @@ export default function TimetablePanel({ data }) {
 
   return (
     <div className="space-y-3">
-      {win.timetablePublished ? <Note tone="ok">Published to staff.</Note> : <Note>Sign-off: publish the timetable once every paper has a date and time, with no clashes. Rooms are optional.</Note>}
+      {win.timetablePublished ? <Note tone="ok">Published to staff.{win.clashesIgnored ? ` Published with ${win.clashesIgnored} clash${win.clashesIgnored > 1 ? 'es' : ''} ignored by ${userName(users, win.clashesIgnoredBy)}.` : ''}</Note> : <Note>Sign-off: publish the timetable once every paper has a date and time, with no clashes. Rooms are optional.</Note>}
       {clashes.length > 0 && (
         <div className="text-sm border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded-xl px-4 py-3">
           <p className="font-semibold flex items-center gap-1.5"><AlertTriangle size={14} /> {clashes.length} clash{clashes.length > 1 ? 'es' : ''}</p>
@@ -122,7 +128,9 @@ export default function TimetablePanel({ data }) {
           <button className={btnGhost} onClick={autoAssign}><Shuffle size={13} /> Assign invigilators fairly</button>
           {win.timetablePublished
             ? <button className={btnGhost} onClick={() => publish(false)}>Unpublish</button>
-            : <button className={btn} onClick={() => publish(true)}><Send size={13} /> Publish timetable</button>}
+            : clashes.length
+              ? <button className={btnGhost} onClick={() => publish(true, { ignoreClashes: true })}><Send size={13} /> Publish anyway (ignore {clashes.length} clash{clashes.length > 1 ? 'es' : ''})</button>
+              : <button className={btn} onClick={() => publish(true)}><Send size={13} /> Publish timetable</button>}
         </div>
       )}
       <p className="text-[11px] text-slate-400">Fair roster: one invigilator per 30 candidates, spread by lowest load, never a teacher of that subject, never two rooms at once.</p>
