@@ -7,7 +7,6 @@
  * Subjects: "Computer Science / ICT" = whichever of the two each class takes.
  */
 import { subjectKey, subjectAt, formOf } from '../schoolSetup/schoolSetup';
-import { TEACHING_ROLES } from '../roles';
 
 const norm = (s) => String(s ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 
@@ -21,11 +20,13 @@ export function classesForForm(label, classes) {
     && (!suffix || norm(c.name).replace(/^FORM/, '').startsWith(`${n}${suffix}`)));
 }
 
+/** Everyone who could invigilate: every account except parent-only ones (incl. staff not given a role yet). */
+export const staffAccounts = (users) => users.filter((u) => !((u.roles ?? []).length && (u.roles ?? []).every((r) => r === 'parent')));
+
 /** Staff whose name contains this surname as a whole word. */
 export function staffBySurname(surname, users) {
   const s = String(surname).trim().toLowerCase();
-  return users.filter((u) => (u.roles ?? []).some((r) => [...TEACHING_ROLES, 'examsOfficer'].includes(r))
-    && String(u.name ?? '').toLowerCase().split(/[^a-z']+/).includes(s));
+  return staffAccounts(users).filter((u) => String(u.name ?? '').toLowerCase().split(/[^a-z']+/).includes(s));
 }
 
 /**

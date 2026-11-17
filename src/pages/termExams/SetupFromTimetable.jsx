@@ -11,9 +11,8 @@ import toast from 'react-hot-toast';
 import { CalendarRange, Loader2, X, AlertTriangle } from 'lucide-react';
 import { db } from '../../firebase/config';
 import { windowRef, paperRef, DEFAULT_BANDS } from '../../lib/termExam/model';
-import { planTimetableImport, staffBySurname } from '../../lib/termExam/timetableImport';
+import { planTimetableImport, staffBySurname, staffAccounts } from '../../lib/termExam/timetableImport';
 import { SESSIONS, TIMETABLE_ID, TIMETABLE_NAME } from '../../lib/examTimetable/endOfYear2026';
-import { TEACHING_ROLES } from '../../lib/roles';
 import { card, btn, btnGhost, Note } from './ui';
 
 const all = async (name) => (await getDocs(collection(db, name))).docs.map((d) => ({ id: d.id, ...d.data() }));
@@ -42,7 +41,10 @@ export default function SetupFromTimetable() {
   const plan = state && planTimetableImport({ windowId: TIMETABLE_ID, sessions: SESSIONS, classes: state.classes, groups: state.groups, users: state.users });
   // Invigilator surname → account, with the officer's picks for unmatched / ambiguous names
   const chosen = plan ? Object.fromEntries(Object.entries(plan.invigilators).map(([n, id]) => [n, state.picks[n] ?? id])) : {};
-  const staff = state ? state.users.filter((u) => (u.roles ?? []).some((r) => [...TEACHING_ROLES, 'examsOfficer'].includes(r))).sort((a, b) => (a.name ?? '').localeCompare(b.name ?? '')) : [];
+  const staff = state ? staffAccounts(state.users).sort((a, b) => (a.name || a.email || '').localeCompare(b.name || b.email || '')) : [];
+  // An account with no role can't record attendance (security rules); say so next to the name
+  const noRole = (id) => !(state?.users.find((u) => u.id === id)?.roles ?? []).length;
+  const staffLabel = (u) => `${u.name || u.email || u.id}${(u.roles ?? []).length ? '' : ' (no role yet)'}`;
   const className = (id) => state?.classes.find((c) => c.id === id)?.name ?? id;
 
   async function create() {
@@ -130,12 +132,16 @@ export default function SetupFromTimetable() {
                       <select className={`flex-1 text-xs border rounded px-1.5 py-1 dark:bg-slate-900 dark:border-slate-600 ${chosen[n] ? '' : 'border-amber-400'}`}
                         value={chosen[n] ?? ''} onChange={(e) => setState((s) => ({ ...s, picks: { ...s.picks, [n]: e.target.value || null } }))}>
                         <option value="">{hits.length > 1 ? `Which ${n}? (${hits.length} staff)` : 'No account — name shown only'}</option>
-                        {staff.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                        {staff.map((u) => <option key={u.id} value={u.id}>{staffLabel(u)}</option>)}
                       </select>
+                      {chosen[n] && noRole(chosen[n]) && <AlertTriangle size={13} className="text-amber-500 shrink-0" aria-label="No role yet" />}
                     </label>
                   );
                 })}
               </div>
+              {Object.values(chosen).some((id) => id && noRole(id)) && (
+                <p className="text-xs text-amber-700 dark:text-amber-300 mt-1.5 flex items-center gap-1"><AlertTriangle size={12} /> Accounts marked “no role yet” need a staff role (e.g. Teacher) in Users before they can take attendance.</p>
+              )}
               {unresolved.length > 0 && <p className="text-xs text-slate-500 mt-1.5">{unresolved.length} name{unresolved.length > 1 ? 's are' : ' is'} not linked to a staff account. They still show on the timetable, but won’t get invigilation tasks until linked (run this again after adding them in Users).</p>}
             </div>
 

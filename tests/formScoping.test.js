@@ -59,7 +59,8 @@ describe('timetable → papers', () => {
     { classId: 'kl6s', syllabusId: 'mhs-9709', syllabusCode: '9709' },
   ];
   const row = (id, form, subject, paper = '', names = []) => ({ id, date: '2026-11-20', slot: 'Morning', start: '08:00', form, subject, paper, duration: 90, invigilatorNames: names });
-  const users = [{ id: 'u1', name: 'Mr Nare', roles: ['teacher'] }, { id: 'u2', name: 'T Moyo', roles: ['teacher'] }, { id: 'u3', name: 'K Moyo', roles: ['hod'] }];
+  const users = [{ id: 'u1', name: 'Mr Nare', roles: [] }, { id: 'u2', name: 'T Moyo', roles: ['teacher'] }, { id: 'u3', name: 'K Moyo', roles: ['superAdmin'] },
+    { id: 'u4', name: 'P Zishura', roles: ['parent'] }];
 
   it('reads form labels: F1 = all Form 1, F1D = that class, F5 = L6', () => {
     expect(classesForForm('F1', classes).map((c) => c.name)).toEqual(['1D', '1E']);
@@ -79,7 +80,8 @@ describe('timetable → papers', () => {
     ]);
     expect(plan.papers[2].data.paper).toBe('Pure P1');
     expect(plan.skipped.map((s) => s.reason)).toEqual(['no F1E class takes Agriculture']);
-    // Unique surname links; two staff called Moyo is left for the officer to choose
+    // Unique surname links (even before a role is given); two staff called Moyo is left
+    // for the officer to choose; a parent account is never an invigilator
     expect(plan.invigilators).toEqual({ Nare: 'u1', Moyo: null, Zishura: null });
     expect(plan.ambiguous.Moyo).toHaveLength(2);
     expect(plan.papers[0].data.invigilatorNames).toEqual(['Moyo', 'Zishura']);
