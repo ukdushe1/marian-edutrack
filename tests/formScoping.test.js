@@ -6,7 +6,7 @@ vi.mock('react', () => ({ useEffect: () => {}, useState: (v) => [v, () => {}], u
 
 const { paperForClass, paperGroups, paperCandidates, paperLabel } = await import('../src/lib/termExam/model');
 const { formResults } = await import('../src/lib/termExam/compute');
-const { planTimetableImport, classesForForm } = await import('../src/lib/termExam/timetableImport');
+const { planTimetableImport, classesForForm, recoverInvigilatorLinks } = await import('../src/lib/termExam/timetableImport');
 
 // Geography (one syllabus) taught in F1 and F2; one paper per form
 const students = [
@@ -86,5 +86,16 @@ describe('timetable → papers', () => {
     expect(plan.ambiguous).toEqual({});
     expect(plan.papers[0].data.invigilatorNames).toEqual(['Nare', 'Zishura', 'Nehoma']);
     expect(plan.classIds.sort()).toEqual(['k1d', 'k1e', 'k3d1', 'k3g', 'kl6s'].sort());
+  });
+
+  it('remembers which of two staff with the same surname was picked last time', () => {
+    const staff = [{ id: 'k', name: 'Kuda Ushe', roles: ['teacher'] }, { id: 'a', name: 'A Ushe', roles: ['teacher'] }, { id: 'n', name: 'J Nare', roles: ['teacher'] }];
+    const sessions = [row('r1', 'F1', 'Business Studies', '', ['Ushe', 'Nare']), row('r2', 'F2', 'Chemistry', '', ['Ushe'])];
+    // Set up before links were saved: Ushe → k is already on the papers
+    const papers = [{ importKey: 'r1', invigilatorIds: ['k', 'n'], invigilatorNames: [] }, { importKey: 'r2', invigilatorIds: ['k'], invigilatorNames: [] }];
+    expect(recoverInvigilatorLinks({ sessions, papers, users: staff })).toEqual({ Ushe: 'k' });
+    // Saved links win; nothing guessed when the papers don't say
+    expect(recoverInvigilatorLinks({ sessions, papers: [], users: staff, saved: { Ushe: 'a', Nare: null } })).toEqual({ Ushe: 'a' });
+    expect(recoverInvigilatorLinks({ sessions, papers: [{ importKey: 'r1', invigilatorIds: [], invigilatorNames: ['Ushe'] }], users: staff })).toEqual({});
   });
 });

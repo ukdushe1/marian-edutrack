@@ -91,3 +91,25 @@ export function planTimetableImport({ windowId, sessions, classes, groups, users
   }
   return { papers, skipped, invigilators, ambiguous, classIds: [...formClassIds] };
 }
+
+/**
+ * Picks made on an earlier run, so the review screen doesn't ask again:
+ * the window's saved links first; for a surname shared by several staff with no
+ * saved link (set up before links were saved), the one already on its papers.
+ * @returns { [surname]: userId }
+ */
+export function recoverInvigilatorLinks({ sessions, papers, users, saved = {} }) {
+  const links = Object.fromEntries(Object.entries(saved).filter(([, id]) => id));
+  const rowOf = Object.fromEntries(sessions.map((s) => [s.id, s]));
+  for (const n of new Set(sessions.flatMap((s) => s.invigilatorNames ?? []))) {
+    if (links[n]) continue;
+    const hits = staffBySurname(n, users);
+    if (hits.length < 2) continue;
+    const onPapers = new Set(papers
+      .filter((p) => (rowOf[p.importKey]?.invigilatorNames ?? []).includes(n) && !(p.invigilatorNames ?? []).includes(n))
+      .flatMap((p) => p.invigilatorIds ?? []));
+    const match = hits.filter((u) => onPapers.has(u.id));
+    if (match.length === 1) links[n] = match[0].id;
+  }
+  return links;
+}

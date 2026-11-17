@@ -11,7 +11,7 @@ import toast from 'react-hot-toast';
 import { CalendarRange, Loader2, X, AlertTriangle } from 'lucide-react';
 import { db } from '../../firebase/config';
 import { windowRef, paperRef, DEFAULT_BANDS } from '../../lib/termExam/model';
-import { planTimetableImport, staffBySurname, staffAccounts } from '../../lib/termExam/timetableImport';
+import { planTimetableImport, staffBySurname, staffAccounts, recoverInvigilatorLinks } from '../../lib/termExam/timetableImport';
 import { SESSIONS, TIMETABLE_ID, TIMETABLE_NAME } from '../../lib/examTimetable/endOfYear2026';
 import { card, btn, btnGhost, Note } from './ui';
 
@@ -32,8 +32,12 @@ export default function SetupFromTimetable() {
         getDocs(query(collection(db, 'examPapers'), where('windowId', '==', TIMETABLE_ID))),
       ]);
       const term = terms.find((t) => t.isCurrent) ?? terms.sort((a, b) => (b.year - a.year) || (b.term - a.term))[0] ?? null;
-      setState({ classes, groups, users, term, existing: win.exists() ? win.data() : null,
-        existingPapers: new Set(papers.docs.map((d) => d.id)), picks: {} });
+      const existing = win.exists() ? win.data() : null;
+      const paperData = papers.docs.map((d) => d.data());
+      // Start from the picks saved last time, so "Which Ushe?" is not asked again
+      const picks = recoverInvigilatorLinks({ sessions: SESSIONS, papers: paperData, users, saved: existing?.invigilatorLinks ?? {} });
+      setState({ classes, groups, users, term, existing,
+        existingPapers: new Set(papers.docs.map((d) => d.id)), picks });
     } catch (e) { toast.error(`Could not load the school setup: ${e.code ?? e.message}`); }
     setLoading(false);
   }
@@ -51,15 +55,17 @@ export default function SetupFromTimetable() {
     try {
       const batch = writeBatch(db);
       const dates = SESSIONS.map((s) => s.date).sort();
+      // Remember every pick (surname → account) with the window for next time
+      const links = Object.fromEntries(Object.entries(chosen).filter(([, id]) => id));
       if (state.existing) {
-        batch.set(windowRef(TIMETABLE_ID), { forms: plan.classIds, startDate: dates[0], endDate: dates.at(-1), updatedAt: serverTimestamp() }, { merge: true });
+        batch.set(windowRef(TIMETABLE_ID), { forms: plan.classIds, startDate: dates[0], endDate: dates.at(-1), invigilatorLinks: links, updatedAt: serverTimestamp() }, { merge: true });
       } else {
         batch.set(windowRef(TIMETABLE_ID), {
           name: TIMETABLE_NAME, termId: state.term.id, startDate: dates[0], endDate: dates.at(-1), forms: plan.classIds,
           defaultSplit: { exam: 70, coursework: 30 }, subjects: {}, gradeBands: DEFAULT_BANDS, minSubjects: 5,
           courseworkFrom: '', nextTermOpens: '', stageDue: {},
           approved: false, timetablePublished: false, resultsChecked: false, published: false, version: 0,
-          createdAt: serverTimestamp(),
+          invigilatorLinks: links, createdAt: serverTimestamp(),
         });
       }
       for (const p of plan.papers) {
