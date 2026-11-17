@@ -20,8 +20,12 @@ export function classesForForm(label, classes) {
     && (!suffix || norm(c.name).replace(/^FORM/, '').startsWith(`${n}${suffix}`)));
 }
 
-/** Everyone who could invigilate: every account except parent-only ones (incl. staff not given a role yet). */
-export const staffAccounts = (users) => users.filter((u) => !((u.roles ?? []).length && (u.roles ?? []).every((r) => r === 'parent')));
+/**
+ * Who can invigilate: accounts with a staff role (any role except parent) —
+ * the same people firestore.rules lets take attendance. Staff with no role
+ * yet are left out until they are given one in Users.
+ */
+export const staffAccounts = (users) => users.filter((u) => (u.roles ?? []).some((r) => r !== 'parent'));
 
 /** Staff whose name contains this surname as a whole word. */
 export function staffBySurname(surname, users) {

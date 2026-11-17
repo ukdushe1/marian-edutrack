@@ -42,9 +42,7 @@ export default function SetupFromTimetable() {
   // Invigilator surname → account, with the officer's picks for unmatched / ambiguous names
   const chosen = plan ? Object.fromEntries(Object.entries(plan.invigilators).map(([n, id]) => [n, state.picks[n] ?? id])) : {};
   const staff = state ? staffAccounts(state.users).sort((a, b) => (a.name || a.email || '').localeCompare(b.name || b.email || '')) : [];
-  // An account with no role can't record attendance (security rules); say so next to the name
-  const noRole = (id) => !(state?.users.find((u) => u.id === id)?.roles ?? []).length;
-  const staffLabel = (u) => `${u.name || u.email || u.id}${(u.roles ?? []).length ? '' : ' (no role yet)'}`;
+  const staffLabel = (u) => u.name || u.email || u.id;
   const className = (id) => state?.classes.find((c) => c.id === id)?.name ?? id;
 
   async function create() {
@@ -134,14 +132,11 @@ export default function SetupFromTimetable() {
                         <option value="">{hits.length > 1 ? `Which ${n}? (${hits.length} staff)` : 'No account — name shown only'}</option>
                         {staff.map((u) => <option key={u.id} value={u.id}>{staffLabel(u)}</option>)}
                       </select>
-                      {chosen[n] && noRole(chosen[n]) && <AlertTriangle size={13} className="text-amber-500 shrink-0" aria-label="No role yet" />}
                     </label>
                   );
                 })}
               </div>
-              {Object.values(chosen).some((id) => id && noRole(id)) && (
-                <p className="text-xs text-amber-700 dark:text-amber-300 mt-1.5 flex items-center gap-1"><AlertTriangle size={12} /> Accounts marked “no role yet” need a staff role (e.g. Teacher) in Users before they can take attendance.</p>
-              )}
+              <p className="text-xs text-slate-500 mt-1.5">Only accounts with a staff role are listed. Someone missing? Give them a role (e.g. Teacher) in Users, then open this again.</p>
               {unresolved.length > 0 && <p className="text-xs text-slate-500 mt-1.5">{unresolved.length} name{unresolved.length > 1 ? 's are' : ' is'} not linked to a staff account. They still show on the timetable, but won’t get invigilation tasks until linked (run this again after adding them in Users).</p>}
             </div>
 

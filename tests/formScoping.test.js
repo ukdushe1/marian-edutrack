@@ -80,11 +80,11 @@ describe('timetable → papers', () => {
     ]);
     expect(plan.papers[2].data.paper).toBe('Pure P1');
     expect(plan.skipped.map((s) => s.reason)).toEqual(['no F1E class takes Agriculture']);
-    // Unique surname links (even before a role is given); two staff called Moyo is left
-    // for the officer to choose; a parent account is never an invigilator
-    expect(plan.invigilators).toEqual({ Nare: 'u1', Moyo: null, Zishura: null });
+    // Only accounts with a staff role: Nare has no role yet and a parent is never an
+    // invigilator; two staff called Moyo is left for the officer to choose
+    expect(plan.invigilators).toEqual({ Nare: null, Moyo: null, Zishura: null });
     expect(plan.ambiguous.Moyo).toHaveLength(2);
-    expect(plan.papers[0].data.invigilatorNames).toEqual(['Moyo', 'Zishura']);
+    expect(plan.papers[0].data.invigilatorNames).toEqual(['Nare', 'Moyo', 'Zishura']);
     expect(plan.classIds.sort()).toEqual(['k1d', 'k1e', 'k3d1', 'k3g', 'kl6s'].sort());
   });
 });
