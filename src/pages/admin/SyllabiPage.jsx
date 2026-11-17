@@ -13,7 +13,7 @@ import { BookMarked, Plus, X, ChevronDown, ChevronUp, Pencil, Lock } from 'lucid
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
 
-const LEVELS = ['IGCSE', 'AS Level', 'A Level', 'Lower School'];
+const LEVELS = ['Lower School', 'O Level', 'IGCSE', 'AS Level', 'A Level'];
 
 /** Who may change which syllabus — mirrors firestore.rules. */
 export function useSyllabusPermissions() {

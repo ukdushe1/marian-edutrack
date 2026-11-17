@@ -12,6 +12,7 @@ import { Upload, Download, FileSpreadsheet, AlertCircle, CheckCircle2 } from 'lu
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import TestDataCard from './TestDataCard';
+import SchoolSetupCard from './SchoolSetupCard';
 
 const REQUIRED_COLS = ['surname', 'firstName'];
 
@@ -120,6 +121,8 @@ export default function DataToolsPage() {
         <h1 className="text-xl font-bold">Data tools</h1>
         <p className="text-sm text-slate-500 dark:text-slate-400">Import class lists and students from Excel.</p>
       </div>
+
+      <SchoolSetupCard />
 
       <TestDataCard />
 
