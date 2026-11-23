@@ -62,6 +62,7 @@ export default function SittingPanel({ data }) {
         <span className="text-xs text-slate-500">{SITTING_STATUS.map((s) => `${counts[s.key]} ${s.short}`).join(' · ')}</span>
       </div>
       {paper.attendanceSubmitted && <Note tone="ok">Attendance submitted for this paper.{roles.canManage && !win.published && <button className="underline ml-2" onClick={() => submit(false)}>Reopen</button>}</Note>}
+      <Note>Everyone counts as present. Only tap the students who were absent, sick or excused, or caught in malpractice. Marking opens when the paper’s time is over; it does not wait for this.</Note>
       <p className="text-[11px] text-slate-500">{SITTING_STATUS.map((s) => `${s.short} = ${s.label}`).join(' · ')}</p>
 
       <div className={`${card} divide-y divide-slate-100 dark:divide-slate-700`}>
@@ -87,7 +88,7 @@ export default function SittingPanel({ data }) {
           onBlur={(e) => e.target.value !== (paper.incidents ?? '') && updateDoc(paperRef(paper.id), { incidents: e.target.value }).catch(() => toast.error('Not saved.'))}
           className="w-full text-sm border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-900 resize-none" placeholder="e.g. fire drill at 10:15, 5 minutes added" />
       </div>
-      {canTake && !paper.attendanceSubmitted && <button className={btn} onClick={() => submit(true)}><CheckCircle2 size={14} /> Submit attendance</button>}
+      {canTake && !paper.attendanceSubmitted && <button className={btn} onClick={() => submit(true)}><CheckCircle2 size={14} /> Confirm attendance (optional)</button>}
       {!canTake && !paper.attendanceSubmitted && <p className="text-xs text-slate-400">Only this paper’s invigilators or the exams officer can take attendance.</p>}
     </div>
   );

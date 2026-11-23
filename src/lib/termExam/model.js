@@ -43,7 +43,7 @@ export const STAGES = [
   { key: 'setup',      n: 1,  label: 'Setup',       who: 'Exams officer',        signoff: 'Principal / VP approves the window' },
   { key: 'papers',     n: 2,  label: 'Papers',      who: 'Setter, HOD',          signoff: 'HOD marks each paper vetted' },
   { key: 'timetable',  n: 3,  label: 'Timetable',   who: 'Exams officer',        signoff: 'Timetable published to staff' },
-  { key: 'sitting',    n: 4,  label: 'Sitting',     who: 'Invigilators',         signoff: 'Every paper’s attendance submitted' },
+  { key: 'sitting',    n: 4,  label: 'Sitting',     who: 'Invigilators',         signoff: 'Every paper written (invigilators record absentees only)' },
   { key: 'marking',    n: 5,  label: 'Marking',     who: 'Subject teachers',     signoff: 'Teacher submits each markbook' },
   { key: 'moderation', n: 6,  label: 'Moderation',  who: 'HOD',                  signoff: 'HOD accepts and locks the marks' },
   { key: 'results',    n: 7,  label: 'Results',     who: 'System',               signoff: 'Exams officer checks the results' },
@@ -211,6 +211,29 @@ export function formLabelFor(classIds, available) {
   return chosen.map((c) => tag(c.name)).join(', ');
 }
 
+/**
+ * Has the paper been written? True once its timetabled end time (date + start +
+ * duration) has passed, or the invigilator has confirmed attendance. Scripts open
+ * for marking then; nobody waits for attendance, everyone counts as present unless
+ * recorded absent / sick / excused / malpractice.
+ */
+export function paperWritten(p, now = new Date()) {
+  if (p?.attendanceSubmitted) return true;
+  if (!p?.date || !p?.start) return false;
+  const end = new Date(`${p.date}T${p.start}`);
+  if (Number.isNaN(end.getTime())) return false;
+  end.setMinutes(end.getMinutes() + (Number(p.duration) || 0));
+  return now >= end;
+}
+
+/** "Wed 18 Nov, 12:30" — when a paper's scripts open for marking. */
+export function paperEndsAt(p) {
+  if (!p?.date || !p?.start) return '';
+  const end = new Date(`${p.date}T${p.start}`);
+  end.setMinutes(end.getMinutes() + (Number(p.duration) || 0));
+  return end.toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+}
+
 /** "4024 Paper 1 (F3)" — the form is shown when the paper is for particular forms. */
 export const paperLabel = (p) => [p.syllabusCode, p.paper, p.formLabel ? `(${p.formLabel})` : ''].filter(Boolean).join(' ');
 
@@ -255,7 +278,7 @@ export function stageStatus(data, syllabusId, stageKey) {
       started = sp.length > 0; break;
     case 'timetable': done = !!win.timetablePublished && sp.length > 0 && sp.every((p) => p.date && p.start);
       started = sp.some((p) => p.date); break;
-    case 'sitting': done = sp.length > 0 && sp.every((p) => p.attendanceSubmitted); started = sp.some((p) => p.attendanceSubmitted); break;
+    case 'sitting': done = sp.length > 0 && sp.every((p) => paperWritten(p)); started = sp.some((p) => paperWritten(p)); break;
     case 'marking': done = pairs.length > 0 && pairs.every((a) => a?.submitted); started = pairs.some((a) => a); break;
     case 'moderation': done = pairs.length > 0 && pairs.every((a) => a?.locked && a?.moderation === 'accepted');
       started = pairs.some((a) => a?.moderation); break;

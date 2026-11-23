@@ -119,3 +119,15 @@ describe('choosing the classes for a hand-added paper', () => {
     expect(classesTakingSubject(data, 'cs').map((c) => c.name)).toEqual(['3D1', '3E']);
   });
 });
+
+describe('scripts open when the exam has been written', () => {
+  it('opens at the timetabled end time, without waiting for attendance', async () => {
+    const { paperWritten } = await import('../src/lib/termExam/model');
+    const p = { date: '2026-11-18', start: '08:00', duration: 90 };
+    expect(paperWritten(p, new Date('2026-11-18T09:29:00'))).toBe(false);
+    expect(paperWritten(p, new Date('2026-11-18T09:30:00'))).toBe(true);
+    expect(paperWritten({ ...p, duration: null }, new Date('2026-11-18T08:00:00'))).toBe(true); // duration TBC: opens at the start time
+    expect(paperWritten({ date: '', start: '' }, new Date())).toBe(false);                     // not timetabled yet
+    expect(paperWritten({ attendanceSubmitted: true }, new Date('2000-01-01'))).toBe(true);     // confirmed early
+  });
+});
