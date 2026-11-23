@@ -8,11 +8,13 @@ import { getDoc, setDoc, updateDoc, onSnapshot, serverTimestamp, doc, getDocs, q
 import { db } from '../../firebase/config';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
-import { ArrowLeft, Send, Lock, Loader2 } from 'lucide-react';
+import { ArrowLeft, Send, Lock, Loader2, Download, Upload, X } from 'lucide-react';
+import * as XLSX from 'xlsx';
+import { marksTemplateRows, planMarksImport } from '../../lib/termExam/marksImport';
 import { paperRef, windowRef, examAssessmentRef, examMarksRef, paperForClass, paperLabel } from '../../lib/termExam/model';
 import { writeAuditLog } from '../../firebase/firestore';
 import { useStudents } from '../../hooks/useStudents';
-import { card, btn, Note, useExamRoles, studentName } from './ui';
+import { card, btn, btnGhost, Note, useExamRoles, studentName } from './ui';
 
 export default function MarkingGrid() {
   const { windowId, paperId, groupId } = useParams();
@@ -24,6 +26,8 @@ export default function MarkingGrid() {
   const [entries, setEntries] = useState({});
   const [sittings, setSittings] = useState({});
   const [draft, setDraft] = useState({}); // typed but unsaved cells
+  const [importPlan, setImportPlan] = useState(null); // preview of a marks file
+  const [importing, setImporting] = useState(false);
 
   useEffect(() => {
     getDoc(windowRef(windowId)).then((d) => setWin(d.data() ?? false));
@@ -89,6 +93,43 @@ export default function MarkingGrid() {
     } catch { toast.error('Not saved — the marks may be locked.'); }
   }
 
+  // ── Import marks from a spreadsheet (template = this class, one column per question)
+  function downloadTemplate() {
+    const ws = XLSX.utils.aoa_to_sheet(marksTemplateRows(students, qs));
+    ws['!cols'] = [{ hidden: true }, { wch: 28 }, ...qs.map(() => ({ wch: 10 }))];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Marks');
+    XLSX.writeFile(wb, `${paperLabel(paper)} ${group.name} marks.xlsx`.replace(/[\\/:*?"<>|]/g, '-'));
+  }
+
+  function readFile(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    file.arrayBuffer().then((buf) => {
+      const wb = XLSX.read(buf, { type: 'array' });
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
+      setImportPlan({ fileName: file.name, ...planMarksImport({ rows, students, questions: qs, sat: (sid) => (sittings[sid] ?? 'present') === 'present' }) });
+    }).catch(() => toast.error('Could not read that file. Use .xlsx or .csv.'));
+  }
+
+  async function applyImport() {
+    const ups = importPlan.updates;
+    const ids = Object.keys(ups);
+    setImporting(true);
+    try {
+      const entriesPatch = Object.fromEntries(ids.map((sid) => [sid, { raw: ups[sid].raw, status: null, perQuestion: ups[sid].perQuestion }]));
+      await setDoc(examMarksRef(groupId, paperId), { entries: entriesPatch, updatedBy: roles.uid, updatedAt: serverTimestamp() }, { merge: true });
+      const replaced = ids.filter((sid) => entries[sid]?.raw != null);
+      writeAuditLog(roles.uid, 'marks', `teachingGroups/${groupId}/assessments/exam_${paperId}`,
+        { imported: importPlan.fileName }, { students: ids.length, replacedExisting: replaced.length }).catch(() => {});
+      setDraft({});
+      toast.success(`Marks imported for ${ids.length} student${ids.length === 1 ? '' : 's'}.`);
+      setImportPlan(null);
+    } catch { toast.error('Not saved — the marks may be locked.'); }
+    setImporting(false);
+  }
+
   async function submit() {
     const missing = present.filter((s) => !complete(s.id));
     if (missing.length) { toast.error(`${missing.length} present student(s) still have unmarked questions.`); return; }
@@ -140,6 +181,35 @@ export default function MarkingGrid() {
           </tbody>
         </table>
       </div>
+      {canEdit && qs.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <button className={btnGhost} onClick={downloadTemplate}><Download size={13} /> Download marks template</button>
+          <label className={`${btnGhost} cursor-pointer`}><Upload size={13} /> Import marks from file
+            <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={readFile} />
+          </label>
+        </div>
+      )}
+      {importPlan && (
+        <div className={`${card} p-4 space-y-2 text-sm`}>
+          <div className="flex items-start justify-between">
+            <p><strong>{importPlan.fileName}</strong>: marks for <strong>{Object.keys(importPlan.updates).length}</strong> student{Object.keys(importPlan.updates).length === 1 ? '' : 's'} ready to save
+              {Object.keys(importPlan.updates).some((sid) => entries[sid]?.raw != null) ? ` (${Object.keys(importPlan.updates).filter((sid) => entries[sid]?.raw != null).length} replace marks already entered)` : ''}.</p>
+            <button onClick={() => setImportPlan(null)} className="p-1" aria-label="Cancel import"><X size={14} /></button>
+          </div>
+          {[...importPlan.errors, ...importPlan.unmatched, ...importPlan.skipped].length > 0 && (
+            <ul className="list-disc pl-5 text-xs text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-900/20 rounded-lg py-2 pr-2">
+              {[...importPlan.errors, ...importPlan.unmatched, ...importPlan.skipped].map((m) => <li key={m}>{m}</li>)}
+            </ul>
+          )}
+          {importPlan.errors.length > 0 && <p className="text-xs text-slate-500">Rows with errors are left out. Fix them in the file and import again, or type those marks in the grid.</p>}
+          <div className="flex gap-2">
+            <button className={btn} onClick={applyImport} disabled={importing || !Object.keys(importPlan.updates).length}>
+              {importing ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />} Save imported marks
+            </button>
+            <button className={btnGhost} onClick={() => setImportPlan(null)}>Cancel</button>
+          </div>
+        </div>
+      )}
       {canEdit && isTeacher && !assess?.submitted && <button className={btn} onClick={submit}><Send size={14} /> Submit markbook</button>}
       <p className="text-[11px] text-slate-400">Marks save when you leave a box. Changes to a mark already saved are recorded in the audit log.</p>
     </div>
