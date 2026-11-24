@@ -131,3 +131,12 @@ describe('scripts open when the exam has been written', () => {
     expect(paperWritten({ attendanceSubmitted: true }, new Date('2000-01-01'))).toBe(true);     // confirmed early
   });
 });
+
+describe('default exam paper', () => {
+  it('a paper with no questions is Q1 out of 100; a built paper keeps its layout', async () => {
+    const { paperQuestions, paperMaxMark } = await import('../src/lib/termExam/model');
+    expect(paperQuestions({ questions: [] })).toEqual([{ no: '1', marks: 100, topicId: '' }]);
+    expect(paperMaxMark({})).toBe(100);
+    expect(paperMaxMark({ questions: [{ no: '1', marks: 30 }, { no: '2', marks: 20 }] })).toBe(50);
+  });
+});

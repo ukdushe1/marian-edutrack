@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { addDoc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { Plus, X, Pencil, ShieldCheck, Printer, Lock } from 'lucide-react';
-import { papersCol, paperRef, windowSubjects, classesTakingSubject, formLabelFor } from '../../lib/termExam/model';
+import { papersCol, paperRef, windowSubjects, classesTakingSubject, formLabelFor, paperQuestions, paperMaxMark, DEFAULT_QUESTIONS } from '../../lib/termExam/model';
 import { TEACHING_ROLES } from '../../lib/roles';
 import { card, input, label, btn, btnGhost, Note, useExamRoles, userName } from './ui';
 
@@ -42,7 +42,7 @@ export default function PapersPanel({ data }) {
               return (
                 <div key={p.id} className="flex flex-wrap items-center gap-2 border-t border-slate-100 dark:border-slate-700 pt-2 text-sm">
                   <div className="flex-1 min-w-[12rem]">
-                    <p className="font-medium">{p.paper}{p.formLabel ? ` (${p.formLabel})` : ''} <span className="text-xs text-slate-400">· {p.date ? `${p.date} ${p.start} · ` : ''}{p.maxMark} marks · {p.duration ?? '?'} min · {p.questions?.length ?? 0} questions</span></p>
+                    <p className="font-medium">{p.paper}{p.formLabel ? ` (${p.formLabel})` : ''} <span className="text-xs text-slate-400">· {p.date ? `${p.date} ${p.start} · ` : ''}{paperMaxMark(p)} marks · {p.duration ?? '?'} min · {p.questions?.length ? `${p.questions.length} questions` : 'default: Q1 out of 100'}</span></p>
                     <p className="text-xs text-slate-500">Setter: {p.setterId ? userName(users, p.setterId) : 'not chosen yet'} · {STATUS[p.status] ?? p.status}{p.vettedBy ? ` by ${userName(users, p.vettedBy)}` : ''}</p>
                   </div>
                   {canEdit && <button className={btnGhost} onClick={() => setEditing(p)}><Pencil size={12} /> Edit</button>}
@@ -70,7 +70,7 @@ function PaperForm({ data, paper, syl, onClose }) {
     paper: paper?.paper ?? `Paper ${data.papers.filter((p) => p.syllabusId === syl.id).length + 1}`,
     duration: paper?.duration ?? 90,
     setterId: paper?.setterId ?? [...subjectTeachers][0] ?? '',
-    questions: paper?.questions ?? [{ no: '1', marks: 10, topicId: '' }],
+    questions: (paper ? paperQuestions(paper) : DEFAULT_QUESTIONS).map((q) => ({ ...q })),
     classIds: paper?.classIds ?? [],
     date: paper?.date ?? '',
     start: paper?.start ?? '',

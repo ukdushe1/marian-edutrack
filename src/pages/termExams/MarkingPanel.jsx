@@ -1,7 +1,7 @@
 /** Stage 5 — marking: one markbook per paper × class; teachers open the per-question grid. */
 import { Link } from 'react-router-dom';
 import { PencilLine } from 'lucide-react';
-import { windowSubjects, paperGroups, paperLabel, paperWritten, paperEndsAt, paperForClass } from '../../lib/termExam/model';
+import { windowSubjects, paperGroups, paperLabel, paperWritten, paperEndsAt, paperForClass, paperQuestions } from '../../lib/termExam/model';
 import { markingProgress } from '../../lib/termExam/examProgress';
 import { card, Note, StatusPill, useExamRoles, userName } from './ui';
 
@@ -22,7 +22,7 @@ export default function MarkingPanel({ data }) {
   const progressOf = (p, g) => {
     const candidateIds = (g.studentIds ?? []).filter((sid) => studentById[sid] && paperForClass(p, studentById[sid].classId));
     const sittings = Object.fromEntries(candidateIds.map((sid) => [sid, data.sittings[sid]?.[p.id]]).filter(([, v]) => v));
-    return markingProgress({ candidateIds, sittings, entries: data.marks[`${p.id}|${g.id}`] ?? {}, questions: p.questions ?? [] });
+    return markingProgress({ candidateIds, sittings, entries: data.marks[`${p.id}|${g.id}`] ?? {}, questions: paperQuestions(p) });
   };
 
   const rows = windowSubjects(data).flatMap((s) => papers.filter((p) => p.syllabusId === s.id).flatMap((p) =>

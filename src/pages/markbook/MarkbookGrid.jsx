@@ -146,11 +146,14 @@ export default function MarkbookGrid({ groupId, group }) {
     XLSX.writeFile(wb, `markbook-${group?.syllabusCode ?? groupId}-${new Date().toISOString().slice(0, 10)}.xlsx`);
   }
 
+  // An exam markbook created before its paper had questions has no maximum: the default paper is out of 100
+  const withExamMax = (list) => list.map((a) => (a.examPaperId && !(Number(a.maxMark) > 0) ? { ...a, maxMark: 100 } : a));
+
   // ── Import a mark list (template = this class + its assessments as columns)
   const label = (s) => `${s.surname}, ${s.firstName}`;
   function downloadTemplate() {
     const sorted = [...students].sort((a, b) => label(a).localeCompare(label(b)));
-    const ws = XLSX.utils.aoa_to_sheet(markbookTemplateRows(sorted, assessments));
+    const ws = XLSX.utils.aoa_to_sheet(markbookTemplateRows(sorted, withExamMax(assessments)));
     ws['!cols'] = [{ hidden: true }, { wch: 28 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Marks');
@@ -163,7 +166,7 @@ export default function MarkbookGrid({ groupId, group }) {
     file.arrayBuffer().then((buf) => {
       const wb = XLSX.read(buf, { type: 'array' });
       const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
-      setImportPlan({ fileName: file.name, ...planMarkbookImport({ rows, students, assessments }) });
+      setImportPlan({ fileName: file.name, ...planMarkbookImport({ rows, students, assessments: withExamMax(assessments) }) });
     }).catch(() => toast.error('Could not read that file. Use .xlsx or .csv.'));
   }
   async function applyImport() {

@@ -12,7 +12,7 @@ import { ArrowLeft, Send, Lock, Loader2, Download, Upload, X } from 'lucide-reac
 import * as XLSX from 'xlsx';
 import { marksTemplateRows, planMarksImport } from '../../lib/termExam/marksImport';
 import { applyExamImport } from '../../lib/termExam/examSync';
-import { paperRef, windowRef, examAssessmentRef, examMarksRef, paperForClass, paperLabel } from '../../lib/termExam/model';
+import { paperRef, windowRef, examAssessmentRef, examMarksRef, paperForClass, paperLabel, paperQuestions, paperMaxMark } from '../../lib/termExam/model';
 import { writeAuditLog } from '../../firebase/firestore';
 import { useStudents } from '../../hooks/useStudents';
 import { card, btn, btnGhost, Note, useExamRoles, studentName } from './ui';
@@ -52,16 +52,23 @@ export default function MarkingGrid() {
     const isTeacher = (group.teacherIds ?? []).includes(roles.uid);
     if (!isTeacher && !roles.isHod && !roles.canManage) return;
     setDoc(examAssessmentRef(groupId, paperId), {
-      title: `${paper.paper} — ${win.name}`, component: 'Exam', maxMark: paper.maxMark, date: paper.date ?? win.endDate,
-      examPaperId: paperId, windowId, questions: paper.questions ?? [], submitted: false, locked: false,
+      title: `${paper.paper} — ${win.name}`, component: 'Exam', maxMark: paperMaxMark(paper), date: paper.date ?? win.endDate,
+      examPaperId: paperId, windowId, questions: paperQuestions(paper), submitted: false, locked: false,
       createdBy: roles.uid, createdAt: serverTimestamp(),
     }).catch(() => {});
   }, [assess, paper, group, win, groupId, paperId, windowId, roles]);
 
+  // Keep the class markbook's maximum in step with the paper (e.g. after it is set as a total)
+  useEffect(() => {
+    if (!assess || !paper || assess.locked || assess.frozen) return;
+    if (Number(assess.maxMark) === paperMaxMark(paper)) return;
+    updateDoc(examAssessmentRef(groupId, paperId), { maxMark: paperMaxMark(paper), questions: paperQuestions(paper) }).catch(() => {});
+  }, [assess, paper, groupId, paperId]);
+
   if (win === null || paper === null || group === null || assess === undefined) return <p className="flex items-center gap-2 text-sm text-slate-400"><Loader2 size={14} className="animate-spin" /> Loading…</p>;
   if (!win || !paper || !group) return <Note tone="warn">This paper or class was not found.</Note>;
 
-  const qs = paper.questions ?? [];
+  const qs = paperQuestions(paper); // Q1 out of 100 until the setter builds the paper
   const isTeacher = (group.teacherIds ?? []).includes(roles.uid);
   const frozen = !!assess?.frozen || win.published;
   const locked = !!assess?.locked;
@@ -153,7 +160,7 @@ export default function MarkingGrid() {
     <div className="space-y-3 max-w-6xl">
       <Link to={`/exams/term/${windowId}?tab=marking`} className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-brand-600"><ArrowLeft size={12} /> {win.name}</Link>
       <h1 className="text-xl font-bold">{paperLabel(paper)} · {group.name}</h1>
-      <p className="text-sm text-slate-500">{paper.maxMark} marks · {qs.length} questions · {present.length} of {students.length} sat · {present.filter((s) => complete(s.id)).length} of {present.length} marked</p>
+      <p className="text-sm text-slate-500">{paperMaxMark(paper)} marks · {paper.questions?.length ? `${qs.length} questions` : 'default paper: Q1 out of 100'} · {present.length} of {students.length} sat · {present.filter((s) => complete(s.id)).length} of {present.length} marked</p>
       {assess?.moderation === 'returned' && !assess?.submitted && <Note tone="warn">Returned by the HOD: “{assess.moderationNote || 'please review'}”. Correct the marks and submit again.</Note>}
       {assess?.submitted && !locked && <Note tone="ok">Submitted for moderation{isTeacher ? ' — you can no longer change marks unless the HOD returns them.' : '.'}</Note>}
       {locked && <Note tone="ok"><Lock size={12} className="inline" /> Moderated and locked by the HOD.{frozen && ' Results are published: marks are frozen.'}</Note>}
@@ -164,7 +171,7 @@ export default function MarkingGrid() {
             <tr className="border-b border-slate-200 dark:border-slate-700 text-xs text-slate-500">
               <th className="text-left px-3 py-2 sticky left-0 bg-white dark:bg-slate-800">Student</th>
               {qs.map((q) => <th key={q.no} className="px-1 py-2 font-medium">Q{q.no}<span className="block font-normal">/{q.marks}</span></th>)}
-              <th className="px-2 py-2">Total<span className="block font-normal">/{paper.maxMark}</span></th>
+              <th className="px-2 py-2">Total<span className="block font-normal">/{paperMaxMark(paper)}</span></th>
             </tr>
           </thead>
           <tbody>

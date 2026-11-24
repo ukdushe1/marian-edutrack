@@ -10,7 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { CalendarRange, Loader2, X, AlertTriangle } from 'lucide-react';
 import { db } from '../../firebase/config';
-import { windowRef, paperRef, DEFAULT_BANDS } from '../../lib/termExam/model';
+import { windowRef, paperRef, DEFAULT_BANDS, DEFAULT_QUESTIONS } from '../../lib/termExam/model';
 import { planTimetableImport, staffBySurname, staffAccounts, recoverInvigilatorLinks } from '../../lib/termExam/timetableImport';
 import { SESSIONS, TIMETABLE_ID, TIMETABLE_NAME } from '../../lib/examTimetable/endOfYear2026';
 import { card, btn, btnGhost, Note } from './ui';
@@ -37,7 +37,7 @@ export default function SetupFromTimetable() {
       // Start from the picks saved last time, so "Which Ushe?" is not asked again
       const picks = recoverInvigilatorLinks({ sessions: SESSIONS, papers: paperData, users, saved: existing?.invigilatorLinks ?? {} });
       setState({ classes, groups, users, term, existing,
-        existingPapers: new Set(papers.docs.map((d) => d.id)), picks });
+        existingPapers: new Map(papers.docs.map((d) => [d.id, d.data()])), picks });
     } catch (e) { toast.error(`Could not load the school setup: ${e.code ?? e.message}`); }
     setLoading(false);
   }
@@ -76,8 +76,11 @@ export default function SetupFromTimetable() {
           invigilatorNames: names.filter((n) => !chosen[n]),
           updatedAt: serverTimestamp(),
         };
-        batch.set(paperRef(p.id), state.existingPapers.has(p.id) ? schedule : {
-          ...schedule, venue: '', status: 'draft', setterId: '', questions: [], maxMark: 0,
+        // Default paper: Q1 out of 100 — kept unless the setter builds the real layout
+        const existing = state.existingPapers.get(p.id);
+        const needsDefault = existing && !existing.questions?.length;
+        batch.set(paperRef(p.id), existing ? { ...schedule, ...(needsDefault ? { questions: DEFAULT_QUESTIONS, maxMark: 100 } : {}) } : {
+          ...schedule, venue: '', status: 'draft', setterId: '', questions: DEFAULT_QUESTIONS, maxMark: 100,
           attendanceSubmitted: false, createdAt: serverTimestamp(),
         }, { merge: true });
       }
@@ -115,7 +118,8 @@ export default function SetupFromTimetable() {
             <div className="text-sm space-y-1">
               <p><strong>Term:</strong> {state.term?.name ?? '—'} · <strong>Dates:</strong> 16–20 Nov 2026</p>
               <p><strong>Classes ({plan.classIds.length}):</strong> {plan.classIds.map(className).join(', ') || '—'}</p>
-              <p><strong>Papers:</strong> {plan.papers.length}{state.existing ? ` (${plan.papers.filter((p) => state.existingPapers.has(p.id)).length} already exist)` : ''}</p>
+              <p><strong>Papers:</strong> {plan.papers.length}{state.existing ? ` (${plan.papers.filter((p) => state.existingPapers.has(p.id)).length} already exist)` : ''} · each starts as <strong>Q1 out of 100</strong> until its setter builds the paper
+                {(() => { const n = plan.papers.filter((p) => state.existingPapers.has(p.id) && !state.existingPapers.get(p.id).questions?.length).length; return n ? ` · ${n} without questions will get the default` : ''; })()}</p>
             </div>
 
             {plan.skipped.length > 0 && (

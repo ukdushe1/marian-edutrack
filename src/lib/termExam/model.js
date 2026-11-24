@@ -234,6 +234,14 @@ export function paperEndsAt(p) {
   return end.toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
+/**
+ * Every exam paper is one question out of 100 until its setter builds the real
+ * layout; if nobody does, that is the exam. Use these instead of p.questions / p.maxMark.
+ */
+export const DEFAULT_QUESTIONS = [{ no: '1', marks: 100, topicId: '' }];
+export const paperQuestions = (p) => (p?.questions?.length ? p.questions : DEFAULT_QUESTIONS);
+export const paperMaxMark = (p) => paperQuestions(p).reduce((a, q) => a + (Number(q.marks) || 0), 0);
+
 /** "4024 Paper 1 (F3)" — the form is shown when the paper is for particular forms. */
 export const paperLabel = (p) => [p.syllabusCode, p.paper, p.formLabel ? `(${p.formLabel})` : ''].filter(Boolean).join(' ');
 

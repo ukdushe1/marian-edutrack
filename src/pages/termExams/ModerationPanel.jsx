@@ -7,7 +7,7 @@ import { updateDoc, serverTimestamp } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import { CheckCircle2, Undo2, AlertTriangle } from 'lucide-react';
-import { examAssessmentRef, windowSubjects, paperGroups, paperLabel } from '../../lib/termExam/model';
+import { examAssessmentRef, windowSubjects, paperGroups, paperLabel, paperMaxMark } from '../../lib/termExam/model';
 import { card, btn, btnGhost, Note, useExamRoles, studentName } from './ui';
 
 function stats(vals) {
@@ -58,7 +58,7 @@ export default function ModerationPanel({ data }) {
         const gs = paperGroups(groups, students, p);
         const perClass = gs.map((g) => {
           const ent = marks[`${p.id}|${g.id}`] ?? {};
-          const vals = Object.entries(ent).filter(([sid, e]) => winStudents.has(sid) && e?.raw != null).map(([sid, e]) => ({ sid, pct: (e.raw / p.maxMark) * 100 }));
+          const vals = Object.entries(ent).filter(([sid, e]) => winStudents.has(sid) && e?.raw != null).map(([sid, e]) => ({ sid, pct: (e.raw / paperMaxMark(p)) * 100 }));
           return { g, a: assessments[`${p.id}|${g.id}`], vals, st: stats(vals.map((v) => v.pct)) };
         });
         const all = stats(perClass.flatMap((c) => c.vals.map((v) => v.pct)));
