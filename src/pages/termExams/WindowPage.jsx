@@ -12,6 +12,7 @@ import SittingPanel from './SittingPanel';
 import MarkingPanel from './MarkingPanel';
 import ModerationPanel from './ModerationPanel';
 import ResultsPanel from './ResultsPanel';
+import SchedulePanel from './SchedulePanel';
 import CommentsPanel from './CommentsPanel';
 import ApprovalPanel from './ApprovalPanel';
 import ReportCardsPanel from './ReportCardsPanel';
@@ -25,6 +26,7 @@ const TABS = [
   ['marking', '5 Marking', MarkingPanel],
   ['moderation', '6 Moderation', ModerationPanel],
   ['results', '7 Results', ResultsPanel],
+  ['schedule', 'Class schedules', SchedulePanel],
   ['comments', '8 Comments', CommentsPanel],
   ['approval', '9 Approval', ApprovalPanel],
   ['cards', '10 Report cards', ReportCardsPanel],
