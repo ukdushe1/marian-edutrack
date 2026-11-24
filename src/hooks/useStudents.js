@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { studentsCol, query, where, onSnapshot } from '../firebase/firestore';
+import { compareStudents } from '../lib/studentOrder';
 
 const CHUNK = 30; // Firestore 'in' queries accept at most 30 values
 
-/** Live list of students by id, sorted by surname. Handles classes larger than 30. */
+/** Live list of students by id in school order (girls then boys, A–Z). Handles classes larger than 30. */
 export function useStudents(studentIds = []) {
   const [students, setStudents] = useState([]);
   const [loading,  setLoading]  = useState(true);
@@ -21,8 +22,7 @@ export function useStudents(studentIds = []) {
       onSnapshot(query(studentsCol(), where('__name__', 'in', ids)), (snap) => {
         results[idx] = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
         if (results.every(Boolean)) {
-          setStudents(results.flat().sort((a, b) =>
-            (a.surname ?? '').localeCompare(b.surname ?? '') || (a.firstName ?? '').localeCompare(b.firstName ?? '')));
+          setStudents(results.flat().sort(compareStudents));
           setLoading(false);
         }
       }));

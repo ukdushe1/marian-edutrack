@@ -10,6 +10,7 @@ import { AlertTriangle, Shuffle, Send, Armchair, X } from 'lucide-react';
 import clsx from 'clsx';
 import { paperRef, windowRef, paperCandidates, paperGroups, paperLabel } from '../../lib/termExam/model';
 import { TEACHING_ROLES } from '../../lib/roles';
+import { compareStudents } from '../../lib/studentOrder';
 import { card, btn, btnGhost, Note, useExamRoles, userName, studentName } from './ui';
 
 const mins = (t) => { const [h, m] = String(t || '0:0').split(':').map(Number); return h * 60 + m; };
@@ -19,7 +20,8 @@ const overlaps = (a, b) => a.date && a.date === b.date && a.start && b.start
 /** Candidates for a paper: students in the window taught the subject, in the paper's forms. */
 export function candidatesFor(data, paper) {
   return paperCandidates(data.groups, data.students, paper)
-    .sort((a, b) => String(a.candidateNumber ?? a.surname).localeCompare(String(b.candidateNumber ?? b.surname)));
+    // By candidate number when both have one; otherwise school order (girls then boys, A–Z)
+    .sort((a, b) => (a.candidateNumber && b.candidateNumber ? String(a.candidateNumber).localeCompare(String(b.candidateNumber)) : compareStudents(a, b)));
 }
 
 export default function TimetablePanel({ data }) {

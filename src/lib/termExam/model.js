@@ -24,6 +24,7 @@ import {
   collection, doc, getDocs, getDoc, query, where, onSnapshot,
 } from 'firebase/firestore';
 import { db } from '../../firebase/config';
+import { compareStudents } from '../studentOrder';
 
 export const windowsCol   = () => collection(db, 'examWindows');
 export const windowRef    = (id) => doc(db, 'examWindows', id);
@@ -123,7 +124,7 @@ export function useWindowData(windowId) {
       const all = stuS.docs.map((d) => ({ id: d.id, ...d.data() }));
       const forms = deriveForms(all, clsS.docs.map((d) => ({ id: d.id, ...d.data() })));
       const students = all.filter((s) => (win.forms ?? []).includes(s.classId))
-        .sort((a, b) => (a.surname ?? '').localeCompare(b.surname ?? ''));
+        .sort(compareStudents);
       const sidSet = new Set(students.map((s) => s.id));
       const groups = grpS.docs.map((d) => ({ id: d.id, ...d.data() }))
         .filter((g) => (g.studentIds ?? []).some((id) => sidSet.has(id)));

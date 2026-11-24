@@ -3,7 +3,8 @@
  * from one workbook. Names come only from the uploaded file, never from source.
  *
  * Workbook
- *   Sheet "Students": class, surname, firstName   (e.g. 3D1, Moyo, Tanaka)
+ *   Sheet "Students": class, surname, firstName, gender   (e.g. 3D1, Moyo, Tanaka, F)
+ *     gender F / M (or Girl / Boy): class lists show girls first, then boys, A–Z
  *   Sheet "Subjects": class, subjects             (e.g. 3D1, "ENG, LIT, MAT, P.E")
  *     subjects use the abbreviations on the school's results schedules.
  *
@@ -13,6 +14,8 @@
  * Everything gets a stable id, and is written with merge, so importing the same
  * file again updates instead of duplicating, and keeps teachers assigned since.
  */
+
+import { parseGender } from '../studentOrder';
 
 // Subject catalogue: key → Cambridge IGCSE (Forms 1–4) and A Level (Forms 5–6)
 // code + full name, plus the abbreviations used on the school's sheets.
@@ -101,7 +104,7 @@ export function planSchoolSetup(studentRows, subjectRows, { year = new Date().ge
     if (!r.surname || !r.firstname) { errors.push(`Students row ${i + 2}: surname and firstName are both needed.`); return; }
     if (formOf(cls) == null) { errors.push(`Students row ${i + 2}: can't tell the form from class "${cls}".`); return; }
     const list = byClass.get(cls) ?? [];
-    list.push({ surname: titleCase(r.surname), firstName: titleCase(r.firstname) });
+    list.push({ surname: titleCase(r.surname), firstName: titleCase(r.firstname), gender: parseGender(r.gender ?? r.sex) });
     byClass.set(cls, list);
   });
 
@@ -129,6 +132,11 @@ export function planSchoolSetup(studentRows, subjectRows, { year = new Date().ge
       if (seen.has(key) && seen.get(key) !== cls) warnings.push(`${s.surname} ${s.firstName} is in both ${seen.get(key)} and ${cls}.`);
       seen.set(key, cls);
     }
+  }
+
+  for (const [cls, list] of byClass) {
+    const unknown = list.filter((s) => !s.gender).length;
+    if (unknown) warnings.push(`${cls}: ${unknown} student${unknown > 1 ? 's have' : ' has'} no gender (F/M), so they are listed after the girls and boys.`);
   }
 
   for (const [cls, list] of byClass) {

@@ -67,6 +67,8 @@ export default function SchoolSetupCard() {
     name: c.data.name,
     form: c.data.form,
     students: plan.students.filter((s) => s.data.classId === c.path.split('/')[1]).length,
+    girls: plan.students.filter((s) => s.data.classId === c.path.split('/')[1] && s.data.gender === 'F').length,
+    boys: plan.students.filter((s) => s.data.classId === c.path.split('/')[1] && s.data.gender === 'M').length,
     subjects: plan.groups.filter((g) => g.data.classId === c.path.split('/')[1]).map((g) => g.data.syllabusCode),
   })).sort((a, b) => a.form - b.form || a.name.localeCompare(b.name)) : [];
 
@@ -75,7 +77,7 @@ export default function SchoolSetupCard() {
       <div>
         <h2 className="font-semibold flex items-center gap-2"><School size={16} /> Import school setup</h2>
         <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-          One .xlsx with two sheets. <strong>Students</strong>: <code>class</code>, <code>surname</code>, <code>firstName</code>.{' '}
+          One .xlsx with two sheets. <strong>Students</strong>: <code>class</code>, <code>surname</code>, <code>firstName</code>, <code>gender</code> (F/M; lists show girls first, then boys, A–Z).{' '}
           <strong>Subjects</strong>: <code>class</code>, <code>subjects</code> (abbreviations as on the results schedules, e.g. “ENG, MAT, P.E, B.S”).
           Creates the classes, subjects, students and one teaching group per class per subject. Importing the same file again updates it and keeps the teachers you have assigned.
         </p>
@@ -103,11 +105,11 @@ export default function SchoolSetupCard() {
           )}
           <div className="overflow-x-auto">
             <table className="text-sm min-w-full">
-              <thead><tr className="text-xs text-slate-500 text-left border-b border-slate-200 dark:border-slate-700"><th className="py-1.5 pr-3">Class</th><th className="pr-3">Form</th><th className="pr-3">Students</th><th>Subjects</th></tr></thead>
+              <thead><tr className="text-xs text-slate-500 text-left border-b border-slate-200 dark:border-slate-700"><th className="py-1.5 pr-3">Class</th><th className="pr-3">Form</th><th className="pr-3">Students</th><th className="pr-3">Girls</th><th className="pr-3">Boys</th><th>Subjects</th></tr></thead>
               <tbody>
                 {perClass.map((c) => (
                   <tr key={c.name} className="border-b border-slate-100 dark:border-slate-700/50 align-top">
-                    <td className="py-1.5 pr-3 font-medium whitespace-nowrap">{c.name}</td><td className="pr-3">{c.form}</td><td className="pr-3">{c.students}</td>
+                    <td className="py-1.5 pr-3 font-medium whitespace-nowrap">{c.name}</td><td className="pr-3">{c.form}</td><td className="pr-3">{c.students}</td><td className="pr-3">{c.girls}</td><td className="pr-3">{c.boys}</td>
                     <td className="text-xs text-slate-500">{c.subjects.join(', ') || '—'}</td>
                   </tr>
                 ))}

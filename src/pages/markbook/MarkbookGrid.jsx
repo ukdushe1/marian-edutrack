@@ -16,6 +16,7 @@ import {
   onSnapshot, addDoc, assessmentsCol,
 } from '../../firebase/firestore';
 import { markbookTemplateRows, planMarkbookImport } from '../../lib/markbookImport';
+import { sortStudents } from '../../lib/studentOrder';
 import { getDoc, getDocs, query, where, collection } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { paperRef, paperForClass } from '../../lib/termExam/model';
@@ -150,9 +151,8 @@ export default function MarkbookGrid({ groupId, group }) {
   const withExamMax = (list) => list.map((a) => (a.examPaperId && !(Number(a.maxMark) > 0) ? { ...a, maxMark: 100 } : a));
 
   // ── Import a mark list (template = this class + its assessments as columns)
-  const label = (s) => `${s.surname}, ${s.firstName}`;
   function downloadTemplate() {
-    const sorted = [...students].sort((a, b) => label(a).localeCompare(label(b)));
+    const sorted = sortStudents(students); // girls then boys, A–Z
     const ws = XLSX.utils.aoa_to_sheet(markbookTemplateRows(sorted, withExamMax(assessments)));
     ws['!cols'] = [{ hidden: true }, { wch: 28 }];
     const wb = XLSX.utils.book_new();
