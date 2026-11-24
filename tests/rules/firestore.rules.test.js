@@ -117,6 +117,25 @@ describe('HOD scope: only their own subjects', () => {
   });
 });
 
+describe('attendance from imported marks', () => {
+  const sit = (db, id, d) => setDoc(doc(db, 'examSittings', id), { paperId: 'p3', studentId: 's1', windowId: 'w1', status: 'absent', ...d });
+  beforeEach(async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'examPapers/p3'), { windowId: 'w1', syllabusId: 'sci', syllabusCode: '4005', status: 'vetted', invigilatorIds: [] });
+    });
+  });
+  it('the class teacher records their own student; nobody else, and not for another class', async () => {
+    await assertSucceeds(sit(as('teacher'), 'p3_s1', { groupId: 'g1' }));
+    await assertFails(sit(as('teacher2'), 'p3_s1', { groupId: 'g1' }));      // doesn't teach g1
+    await assertFails(sit(as('teacher'), 'p3_s1', {}));                      // no class named
+    await assertFails(sit(as('teacher'), 'p3_s9', { groupId: 'g1', studentId: 's9' })); // not in the class
+    await assertFails(sit(as('teacher'), 'wrong_id', { groupId: 'g1' }));    // id must be paper_student
+  });
+  it('the subject HOD records attendance for any student', async () => {
+    await assertSucceeds(sit(as('hod'), 'p3_s1', {}));
+  });
+});
+
 describe('conduct', () => {
   it('only test conduct records can be deleted, and only by the Principal / System Admin', async () => {
     await env.withSecurityRulesDisabled(async (ctx) => {

@@ -32,12 +32,12 @@ describe('importing exam marks from a file', () => {
     expect(plan.unmatched).toEqual(['Row 3: Nobody Here is not in this class.']);
   });
 
-  it('flags marks out of range and ignores students who did not sit', () => {
-    const rows = [{ name: 'Alpha Anne', Q1: 12, Q2: 3 }, { name: 'Beta Ben', Q1: 4, Q2: 4 }];
-    const plan = planMarksImport({ rows, students, questions, sat: (sid) => sid !== 's2' });
+  it('flags marks out of range; A and X record attendance instead of marks', () => {
+    const rows = [{ name: 'Alpha Anne', Q1: 12, Q2: 3 }, { name: 'Beta Ben', Q1: 'A', Q2: '' }, { name: 'Gamma Cara', Q1: 'x', Q2: '' }];
+    const plan = planMarksImport({ rows, students, questions });
     expect(plan.updates).toEqual({});
     expect(plan.errors[0]).toMatch(/Q1 = "12" must be 0–10/);
-    expect(plan.skipped[0]).toMatch(/Beta, Ben did not sit/);
+    expect(plan.statuses).toEqual({ s2: 'absent', s3: 'excused' });
   });
 
   it('a one-question paper can use a Total column; otherwise question columns are required', () => {

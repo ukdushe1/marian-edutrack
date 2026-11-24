@@ -223,9 +223,26 @@ service cloud.firestore {
       allow delete: if isAdmin() || ((isExams() || hodOf(resource.data.syllabusCode)) && resource.data.status == 'draft');
     }
     match /examSittings/{id} {
+      // Imported marks record attendance too ("A" = absent; marked = present): allowed for the
+      // subject's HOD, or a teacher of the student's class in that subject (doc names the class)
+      function teachesStudent(d, p) {
+        let g = get(/databases/$(database)/documents/teachingGroups/$(d.groupId)).data;
+        return uid() in g.get('teacherIds', []) && d.studentId in g.get('studentIds', []) && g.get('syllabusId', '') == p.get('syllabusId', '');
+      }
+      // Roles are read once here (the shared helpers re-read them per call, which hits the
+      // rules' expression limit): exams staff; the paper's invigilators; or imported marks
+      function canRecordSitting(d) {
+        let r = roles();
+        let p = get(/databases/$(database)/documents/examPapers/$(d.paperId)).data;
+        return r.hasAny(['superAdmin', 'principal', 'vicePrincipal', 'head', 'examsOfficer'])
+          || (r.hasAny(['hod', 'teacher', 'classTeacher', 'tutor', 'boardingMaster']) && (
+               uid() in p.get('invigilatorIds', [])
+               || (id == d.paperId + '_' + d.studentId && (
+                    ('hod' in r && p.get('syllabusCode', '') in hodSubjects())
+                    || (d.get('groupId', '') != '' && teachesStudent(d, p))))));
+      }
       allow read:   if isStaff();
-      allow create, update: if isExams() || (isStaff() && uid() in
-        get(/databases/$(database)/documents/examPapers/$(request.resource.data.paperId)).data.get('invigilatorIds', []));
+      allow create, update: if isSignedIn() && canRecordSitting(request.resource.data);
       allow delete: if isExams();
     }
     // Saved once at publication; parents will read their own child's in phase 2

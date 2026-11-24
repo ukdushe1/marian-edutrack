@@ -13,10 +13,15 @@ import { useAssessments } from '../../hooks/useAssessments';
 import { useStudents } from '../../hooks/useStudents';
 import {
   marksRef, setDoc, now, writeAuditLog,
-  onSnapshot,
+  onSnapshot, addDoc, assessmentsCol,
 } from '../../firebase/firestore';
+import { markbookTemplateRows, planMarkbookImport } from '../../lib/markbookImport';
+import { getDoc, getDocs, query, where, collection } from 'firebase/firestore';
+import { db } from '../../firebase/config';
+import { paperRef, paperForClass } from '../../lib/termExam/model';
+import { applyExamImport } from '../../lib/termExam/examSync';
 import { useAuth } from '../../contexts/AuthContext';
-import { Lock, Download } from 'lucide-react';
+import { Lock, Download, Upload, X, Loader2 } from 'lucide-react';
 import clsx from 'clsx';
 import * as XLSX from 'xlsx';
 import toast from 'react-hot-toast';
@@ -30,6 +35,8 @@ export default function MarkbookGrid({ groupId, group }) {
   const [marksMap,  setMarksMap]  = useState({});   // { [assessmentId]: entries }
   const [locked,    setLocked]    = useState({});    // { [assessmentId]: bool }
   const [focusCell, setFocusCell] = useState(null);  // { row, col }
+  const [importPlan, setImportPlan] = useState(null); // preview of a mark-list file
+  const [importing, setImporting] = useState(false);
 
   // Load students in this group (chunked — classes can exceed 30)
   const { students } = useStudents(group?.studentIds ?? []);
@@ -139,15 +146,126 @@ export default function MarkbookGrid({ groupId, group }) {
     XLSX.writeFile(wb, `markbook-${group?.syllabusCode ?? groupId}-${new Date().toISOString().slice(0, 10)}.xlsx`);
   }
 
+  // ── Import a mark list (template = this class + its assessments as columns)
+  const label = (s) => `${s.surname}, ${s.firstName}`;
+  function downloadTemplate() {
+    const sorted = [...students].sort((a, b) => label(a).localeCompare(label(b)));
+    const ws = XLSX.utils.aoa_to_sheet(markbookTemplateRows(sorted, assessments));
+    ws['!cols'] = [{ hidden: true }, { wch: 28 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Marks');
+    XLSX.writeFile(wb, `${group?.name ?? 'class'} mark list.xlsx`.replace(/[\\/:*?"<>|]/g, '-'));
+  }
+  function readFile(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    file.arrayBuffer().then((buf) => {
+      const wb = XLSX.read(buf, { type: 'array' });
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
+      setImportPlan({ fileName: file.name, ...planMarkbookImport({ rows, students, assessments }) });
+    }).catch(() => toast.error('Could not read that file. Use .xlsx or .csv.'));
+  }
+  async function applyImport() {
+    setImporting(true);
+    try {
+      let saved = 0;
+      const notes = [];
+      for (const c of importPlan.columns) {
+        const ups = importPlan.updates[c.key];
+        if (!ups) continue;
+        if (c.examPaperId) {
+          // End of Term exam: totals into the exam markbook, A/X into Sitting, auto-submit when complete
+          const a = assessments.find((x) => x.id === c.assessmentId);
+          const pd = await getDoc(paperRef(c.examPaperId));
+          if (!pd.exists()) { notes.push(`${c.header}: exam paper not found, skipped`); continue; }
+          const paper = { id: pd.id, ...pd.data() };
+          const sits = await getDocs(query(collection(db, 'examSittings'), where('paperId', '==', paper.id)));
+          const sittingsBefore = Object.fromEntries(sits.docs.map((d) => [d.data().studentId, d.data().status]));
+          const r = await applyExamImport({
+            paper, windowId: a.windowId ?? paper.windowId, groupId, assessment: a,
+            candidateIds: students.filter((s) => paperForClass(paper, s.classId)).map((s) => s.id),
+            entryUpdates: Object.fromEntries(Object.entries(ups).filter(([, e]) => !e.status).map(([sid, e]) => [sid, { raw: e.raw, perQuestion: {} }])),
+            statusUpdates: Object.fromEntries(Object.entries(ups).filter(([, e]) => e.status).map(([sid, e]) => [sid, e.status])),
+            entriesBefore: marksMap[a.id] ?? {}, sittingsBefore, uid: firebaseUser.uid,
+          });
+          saved += Object.keys(ups).length;
+          notes.push(`${c.header}: ${r.progress.marked} of ${r.progress.present} marked${r.submitted ? ', submitted to the HOD' : ''}`);
+          continue;
+        }
+        let aId = c.assessmentId;
+        if (!aId) {
+          const ref = await addDoc(assessmentsCol(groupId), {
+            title: c.newTitle, component: 'Class test', maxMark: c.maxMark,
+            date: new Date().toISOString().slice(0, 10), createdBy: firebaseUser.uid, createdAt: now(),
+          });
+          aId = ref.id;
+        }
+        await setDoc(marksRef(groupId, aId), { entries: ups, updatedBy: firebaseUser.uid, updatedAt: now() }, { merge: true });
+        saved += Object.keys(ups).length;
+      }
+      writeAuditLog(firebaseUser.uid, 'marks', `teachingGroups/${groupId}`, { imported: importPlan.fileName },
+        { columns: importPlan.columns.map((c) => c.header), marks: saved }).catch(() => {});
+      toast.success([`${saved} marks imported`, ...notes].join(' · '), { duration: 6000 });
+      setImportPlan(null);
+    } catch (err) { toast.error(`Import stopped: ${err.code ?? err.message}`); }
+    setImporting(false);
+  }
+
+  const importBar = (
+    <>
+      <div className="flex flex-wrap items-center gap-2">
+        <button onClick={downloadTemplate} className="flex items-center gap-1 text-xs border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-700">
+          <Download size={13} /> Mark list template
+        </button>
+        <label className="flex items-center gap-1 text-xs border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer">
+          <Upload size={13} /> Import mark list
+          <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={readFile} />
+        </label>
+      </div>
+      {importPlan && (
+        <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-2 text-sm">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <p><strong>{importPlan.fileName}</strong></p>
+              <ul className="text-xs text-slate-600 dark:text-slate-300 mt-1">
+                {importPlan.columns.map((c) => (
+                  <li key={c.key}>{c.assessmentId ? c.header : <><strong>New:</strong> {c.newTitle} (/{c.maxMark})</>} — {c.count} mark{c.count === 1 ? '' : 's'}{c.examPaperId ? ' · End of Term exam: updates Sitting and Marking' : ''}</li>
+                ))}
+              </ul>
+            </div>
+            <button onClick={() => setImportPlan(null)} className="p-1" aria-label="Cancel import"><X size={14} /></button>
+          </div>
+          {[...importPlan.errors, ...importPlan.unmatched, ...importPlan.ignored].length > 0 && (
+            <ul className="list-disc pl-5 text-xs text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-900/20 rounded-lg py-2 pr-2">
+              {[...importPlan.errors, ...importPlan.unmatched, ...importPlan.ignored].map((m) => <li key={m}>{m}</li>)}
+            </ul>
+          )}
+          <div className="flex gap-2">
+            <button onClick={applyImport} disabled={importing || !Object.keys(importPlan.updates).length}
+              className="flex items-center gap-1.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-60 text-white text-sm font-medium px-3 py-1.5 rounded-lg">
+              {importing ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />} Save imported marks
+            </button>
+            <button onClick={() => setImportPlan(null)} className="text-sm px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700">Cancel</button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+
   if (loadingA) return <GridSkeleton />;
   if (!assessments.length) return (
-    <div className="text-center py-12 text-slate-400 text-sm">
-      No assessments yet. Click <strong>+ New assessment</strong> to add one.
+    <div className="space-y-3">
+      {importBar}
+      <div className="text-center py-12 text-slate-400 text-sm">
+        No assessments yet. Click <strong>+ New assessment</strong>, or import a mark list with headings like “Test 1 (/20)”.
+      </div>
     </div>
   );
 
   return (
     <div className="space-y-3">
+      {importBar}
       <div className="flex items-center justify-between text-xs text-slate-400 dark:text-slate-500">
         <span>Keys: <kbd className="bg-slate-100 dark:bg-slate-700 px-1 rounded">A</kbd> absent · <kbd className="bg-slate-100 dark:bg-slate-700 px-1 rounded">X</kbd> exempt · arrows move · Enter/Tab advance</span>
         <button onClick={exportXLSX} className="flex items-center gap-1 hover:text-brand-600 transition-colors">

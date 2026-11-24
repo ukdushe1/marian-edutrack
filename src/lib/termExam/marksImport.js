@@ -2,8 +2,11 @@
  * Import exam marks for one paper × class from a spreadsheet.
  * Columns: id (from the template), name, then one column per question ("Q1", "Q2a"…).
  * A paper with a single question may use "Total" instead.
+ * "A" (absent) or "X" (absent with valid reason) in a mark cell records attendance.
  * Pure: returns what would be saved plus anything to fix, for a preview.
  */
+
+import { EXAM_CODES } from './examProgress';
 
 const key = (s) => String(s ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
 const nameKey = (s) => String(s ?? '').toLowerCase().replace(/[^a-z\s'-]/g, ' ').split(/\s+/).filter(Boolean).sort().join(' ');
@@ -18,13 +21,13 @@ export function marksTemplateRows(students, questions) {
  * @param rows sheet rows as objects (header → value)
  * @param students [{ id, surname, firstName }] in this class for this paper
  * @param questions [{ no, marks }]
- * @param sat (studentId) => boolean — false for absent / sick / excused / malpractice
- * @returns { updates: { [sid]: { perQuestion, raw } }, errors, unmatched, skipped }
+ * @returns { updates: { [sid]: { perQuestion, raw } }, statuses: { [sid]: 'absent'|'excused' }, errors, unmatched }
+ *   A student recorded absent who now has marks becomes present (see examSync).
  */
-export function planMarksImport({ rows, students, questions, sat = () => true }) {
-  const errors = [], unmatched = [], skipped = [];
-  const updates = {};
-  if (!rows.length) return { updates, errors: ['The file has no rows.'], unmatched, skipped };
+export function planMarksImport({ rows, students, questions }) {
+  const errors = [], unmatched = [];
+  const updates = {}, statuses = {};
+  if (!rows.length) return { updates, statuses, errors: ['The file has no rows.'], unmatched };
 
   // Which column holds each question ("Q1 (/10)", "q1", "1" all match question 1)
   const headers = Object.keys(rows[0]);
@@ -37,9 +40,9 @@ export function planMarksImport({ rows, students, questions, sat = () => true })
   const totalCol = headers.find((x) => key(x) === 'total');
   if (!Object.keys(colFor).length && totalCol && questions.length === 1) colFor[questions[0].no] = totalCol;
   if (!Object.keys(colFor).length) {
-    return { updates, errors: [questions.length > 1
+    return { updates, statuses, errors: [questions.length > 1
       ? `No question columns found. Use the template: one column per question (${questions.map((q) => `Q${q.no}`).join(', ')}).`
-      : 'No mark column found. Use the template, or a "Total" column.'], unmatched, skipped };
+      : 'No mark column found. Use the template, or a "Total" column.'], unmatched };
   }
   const idCol = headers.find((x) => key(x) === 'id');
   const nameCol = headers.find((x) => ['name', 'student', 'studentname', 'learner', 'nameoflearner'].includes(key(x)));
@@ -53,7 +56,8 @@ export function planMarksImport({ rows, students, questions, sat = () => true })
     if (marks.every((v) => v === '' || v == null)) return; // nothing entered
     const s = (idCol && byId[String(r[idCol]).trim()]) || (nameCol && byName.get(nameKey(r[nameCol])));
     if (!s) { unmatched.push(`Row ${line}: ${nameCol ? r[nameCol] || '(no name)' : '(no name column)'} is not in this class.`); return; }
-    if (!sat(s.id)) { skipped.push(`${s.surname}, ${s.firstName} did not sit this paper — marks ignored.`); return; }
+    const code = marks.map((v) => EXAM_CODES[String(v ?? '').trim().toUpperCase()]).find(Boolean);
+    if (code) { statuses[s.id] = code; return; }
     const perQuestion = {};
     let bad = false;
     questions.forEach((q, k) => {
@@ -67,5 +71,5 @@ export function planMarksImport({ rows, students, questions, sat = () => true })
     const vals = Object.values(perQuestion).filter((v) => v != null);
     updates[s.id] = { perQuestion, raw: vals.length ? vals.reduce((a, v) => a + v, 0) : null };
   });
-  return { updates, errors, unmatched, skipped };
+  return { updates, statuses, errors, unmatched };
 }

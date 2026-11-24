@@ -11,6 +11,7 @@ import clsx from 'clsx';
 import { ArrowLeft, Send, Lock, Loader2, Download, Upload, X } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { marksTemplateRows, planMarksImport } from '../../lib/termExam/marksImport';
+import { applyExamImport } from '../../lib/termExam/examSync';
 import { paperRef, windowRef, examAssessmentRef, examMarksRef, paperForClass, paperLabel } from '../../lib/termExam/model';
 import { writeAuditLog } from '../../firebase/firestore';
 import { useStudents } from '../../hooks/useStudents';
@@ -68,13 +69,17 @@ export default function MarkingGrid() {
   const present = students.filter((s) => (sittings[s.id] ?? 'present') === 'present');
 
   const cell = (sid, no) => draft[`${sid}|${no}`] ?? entries[sid]?.perQuestion?.[no] ?? '';
+  // An entry imported as a total only (Markbook mark list) has no per-question marks
+  const totalOnly = (sid) => entries[sid]?.raw != null && !Object.values(entries[sid]?.perQuestion ?? {}).some((v) => v != null && v !== '')
+    && !Object.keys(draft).some((k) => k.startsWith(`${sid}|`));
   const totalOf = (sid) => {
+    if (totalOnly(sid)) return entries[sid].raw;
     const pq = { ...(entries[sid]?.perQuestion ?? {}) };
     Object.entries(draft).forEach(([k, v]) => { const [s, n] = k.split('|'); if (s === sid) pq[n] = v === '' ? null : Number(v); });
     const vals = qs.map((q) => pq[q.no]);
     return vals.some((v) => v != null && v !== '') ? vals.reduce((a, v) => a + (Number(v) || 0), 0) : null;
   };
-  const complete = (sid) => qs.every((q) => { const v = cell(sid, q.no); return v !== '' && v != null; });
+  const complete = (sid) => totalOnly(sid) || qs.every((q) => { const v = cell(sid, q.no); return v !== '' && v != null; });
 
   async function save(sid, q, value) {
     const key = `${sid}|${q.no}`;
@@ -109,7 +114,7 @@ export default function MarkingGrid() {
     file.arrayBuffer().then((buf) => {
       const wb = XLSX.read(buf, { type: 'array' });
       const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
-      setImportPlan({ fileName: file.name, ...planMarksImport({ rows, students, questions: qs, sat: (sid) => (sittings[sid] ?? 'present') === 'present' }) });
+      setImportPlan({ fileName: file.name, ...planMarksImport({ rows, students, questions: qs }) });
     }).catch(() => toast.error('Could not read that file. Use .xlsx or .csv.'));
   }
 
@@ -118,15 +123,20 @@ export default function MarkingGrid() {
     const ids = Object.keys(ups);
     setImporting(true);
     try {
-      const entriesPatch = Object.fromEntries(ids.map((sid) => [sid, { raw: ups[sid].raw, status: null, perQuestion: ups[sid].perQuestion }]));
-      await setDoc(examMarksRef(groupId, paperId), { entries: entriesPatch, updatedBy: roles.uid, updatedAt: serverTimestamp() }, { merge: true });
+      // Marks, then attendance (A/X absent, marked = present), then auto-submit when complete
+      const r = await applyExamImport({
+        paper, windowId, groupId, assessment: assess, candidateIds: students.map((s) => s.id),
+        entryUpdates: ups, statusUpdates: importPlan.statuses, entriesBefore: entries, sittingsBefore: sittings, uid: roles.uid,
+      });
+      setSittings(r.sittings);
       const replaced = ids.filter((sid) => entries[sid]?.raw != null);
       writeAuditLog(roles.uid, 'marks', `teachingGroups/${groupId}/assessments/exam_${paperId}`,
-        { imported: importPlan.fileName }, { students: ids.length, replacedExisting: replaced.length }).catch(() => {});
+        { imported: importPlan.fileName }, { students: ids.length, replacedExisting: replaced.length, attendanceChanges: r.sittingChanges.length, autoSubmitted: r.submitted }).catch(() => {});
       setDraft({});
-      toast.success(`Marks imported for ${ids.length} student${ids.length === 1 ? '' : 's'}.`);
+      const absent = r.sittingChanges.filter((c) => c.status !== 'present').length;
+      toast.success([`Marks imported for ${ids.length}`, absent ? `${absent} recorded absent` : '', r.submitted ? 'markbook submitted to the HOD' : `${r.progress.marked} of ${r.progress.present} marked`].filter(Boolean).join(' · '));
       setImportPlan(null);
-    } catch { toast.error('Not saved — the marks may be locked.'); }
+    } catch (err) { toast.error(`Not saved: ${err.code === 'permission-denied' ? 'you can’t change these marks or this attendance' : err.code ?? err.message}`); }
     setImporting(false);
   }
 
@@ -143,7 +153,7 @@ export default function MarkingGrid() {
     <div className="space-y-3 max-w-6xl">
       <Link to={`/exams/term/${windowId}?tab=marking`} className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-brand-600"><ArrowLeft size={12} /> {win.name}</Link>
       <h1 className="text-xl font-bold">{paperLabel(paper)} · {group.name}</h1>
-      <p className="text-sm text-slate-500">{paper.maxMark} marks · {qs.length} questions · {present.length} of {students.length} sat</p>
+      <p className="text-sm text-slate-500">{paper.maxMark} marks · {qs.length} questions · {present.length} of {students.length} sat · {present.filter((s) => complete(s.id)).length} of {present.length} marked</p>
       {assess?.moderation === 'returned' && !assess?.submitted && <Note tone="warn">Returned by the HOD: “{assess.moderationNote || 'please review'}”. Correct the marks and submit again.</Note>}
       {assess?.submitted && !locked && <Note tone="ok">Submitted for moderation{isTeacher ? ' — you can no longer change marks unless the HOD returns them.' : '.'}</Note>}
       {locked && <Note tone="ok"><Lock size={12} className="inline" /> Moderated and locked by the HOD.{frozen && ' Results are published: marks are frozen.'}</Note>}
@@ -192,18 +202,18 @@ export default function MarkingGrid() {
       {importPlan && (
         <div className={`${card} p-4 space-y-2 text-sm`}>
           <div className="flex items-start justify-between">
-            <p><strong>{importPlan.fileName}</strong>: marks for <strong>{Object.keys(importPlan.updates).length}</strong> student{Object.keys(importPlan.updates).length === 1 ? '' : 's'} ready to save
+            <p><strong>{importPlan.fileName}</strong>: marks for <strong>{Object.keys(importPlan.updates).length}</strong> student{Object.keys(importPlan.updates).length === 1 ? '' : 's'} ready to save{Object.keys(importPlan.statuses).length ? `, ${Object.keys(importPlan.statuses).length} recorded absent (A/X)` : ''}
               {Object.keys(importPlan.updates).some((sid) => entries[sid]?.raw != null) ? ` (${Object.keys(importPlan.updates).filter((sid) => entries[sid]?.raw != null).length} replace marks already entered)` : ''}.</p>
             <button onClick={() => setImportPlan(null)} className="p-1" aria-label="Cancel import"><X size={14} /></button>
           </div>
-          {[...importPlan.errors, ...importPlan.unmatched, ...importPlan.skipped].length > 0 && (
+          {[...importPlan.errors, ...importPlan.unmatched].length > 0 && (
             <ul className="list-disc pl-5 text-xs text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-900/20 rounded-lg py-2 pr-2">
-              {[...importPlan.errors, ...importPlan.unmatched, ...importPlan.skipped].map((m) => <li key={m}>{m}</li>)}
+              {[...importPlan.errors, ...importPlan.unmatched].map((m) => <li key={m}>{m}</li>)}
             </ul>
           )}
           {importPlan.errors.length > 0 && <p className="text-xs text-slate-500">Rows with errors are left out. Fix them in the file and import again, or type those marks in the grid.</p>}
           <div className="flex gap-2">
-            <button className={btn} onClick={applyImport} disabled={importing || !Object.keys(importPlan.updates).length}>
+            <button className={btn} onClick={applyImport} disabled={importing || !(Object.keys(importPlan.updates).length + Object.keys(importPlan.statuses).length)}>
               {importing ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />} Save imported marks
             </button>
             <button className={btnGhost} onClick={() => setImportPlan(null)}>Cancel</button>
