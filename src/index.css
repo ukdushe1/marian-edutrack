@@ -28,12 +28,20 @@
   }
 }
 
-/* Printing (report cards, seating plans): only the page content */
+/* Printing (report cards, seating plans, class schedules, learner analysis): only the page
+   content, never clipped — fixed-height frames and scroll boxes expand; tables wider than
+   the paper are scaled to fit by src/lib/printFit.js */
 @media print {
+  @page { margin: 10mm; }
   aside, body nav, .print\:hidden { display: none !important; }
-  .h-screen { height: auto !important; }
-  .overflow-hidden, .overflow-y-auto { overflow: visible !important; }
+  .h-screen, [class*="h-[100dvh]"], [class*="max-h-["] { height: auto !important; max-height: none !important; }
+  .overflow-hidden, .overflow-y-auto, .overflow-x-auto, .overflow-x-hidden, .overflow-auto { overflow: visible !important; }
+  html, body, #root { height: auto !important; overflow: visible !important; }
   main { padding: 0 !important; }
+  main table { max-width: none !important; }
+  main svg { max-width: 100% !important; height: auto !important; }
+  main th, main td { word-break: normal; }
+  tr, figure, .break-inside-avoid { break-inside: avoid; }
   .report-card { break-after: page; border: none !important; box-shadow: none !important; }
   body { background: #fff !important; }
 }

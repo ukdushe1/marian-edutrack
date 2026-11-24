@@ -156,7 +156,7 @@ export default function SchedulePanel({ data }) {
   const td = 'border border-slate-200 dark:border-slate-700 px-1.5 py-0.5 text-center';
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-print-landscape>
       <style>{'@media print { @page { size: A4 landscape; margin: 10mm; } .sched-break { break-before: page; } }'}</style>
       <div className="flex flex-wrap items-center gap-2 print:hidden">
         <select aria-label="Class" className="text-sm border rounded-lg px-2.5 py-1.5 dark:bg-slate-800 dark:border-slate-600" value={formId} onChange={(e) => setFormId(e.target.value)}>

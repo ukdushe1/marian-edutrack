@@ -2,6 +2,10 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
 import './index.css';
+import { installPrintFit } from './lib/printFit';
+
+// Printed pages: wide tables are scaled to fit the paper width
+installPrintFit();
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 
