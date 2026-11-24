@@ -17,6 +17,7 @@ export default function SetupPanel({ data }) {
     subjects: Object.fromEntries(subjects.map((s) => [s.id, subjectWeights(win, s)])),
     gradeBands: win.gradeBands?.length ? win.gradeBands : DEFAULT_BANDS,
     minSubjects: win.minSubjects ?? 5,
+    minSubjectsALevel: win.minSubjectsALevel ?? 3,
     stageDue: win.stageDue ?? {},
   }));
   const [busy, setBusy] = useState(false);
@@ -39,7 +40,7 @@ export default function SetupPanel({ data }) {
       // Changing an approved setup needs fresh approval, unless a senior leader saves it
       const reapprove = win.approved && !roles.canApprove;
       await updateDoc(windowRef(win.id), {
-        ...f, minSubjects: Number(f.minSubjects),
+        ...f, minSubjects: Number(f.minSubjects), minSubjectsALevel: Number(f.minSubjectsALevel),
         gradeBands: f.gradeBands.map((b) => ({ grade: b.grade.trim(), min: Number(b.min) })).sort((a, b) => b.min - a.min),
         ...(reapprove ? { approved: false, approvedBy: null } : {}),
         updatedAt: serverTimestamp(),
@@ -120,7 +121,10 @@ export default function SetupPanel({ data }) {
           ))}
           <button type="button" className={btnGhost} onClick={() => setF({ ...f, gradeBands: [...f.gradeBands, { grade: '', min: 0 }] })}><Plus size={12} /> Band</button>
           <div className="pt-2"><label className={label}>Minimum subjects for an overall position</label>
-            <input type="number" min={1} className="w-20 border rounded px-1.5 py-0.5 dark:bg-slate-900 dark:border-slate-600" value={f.minSubjects} onChange={(e) => setF({ ...f, minSubjects: e.target.value })} /></div>
+            <div className="flex flex-wrap items-center gap-3 text-sm">
+              <span>Forms 1–4 <input type="number" min={1} aria-label="Minimum subjects, Forms 1 to 4" className="w-16 border rounded px-1.5 py-0.5 dark:bg-slate-900 dark:border-slate-600" value={f.minSubjects} onChange={(e) => setF({ ...f, minSubjects: e.target.value })} /></span>
+              <span>A Level (L6, U6) <input type="number" min={1} aria-label="Minimum subjects, A Level" className="w-16 border rounded px-1.5 py-0.5 dark:bg-slate-900 dark:border-slate-600" value={f.minSubjectsALevel} onChange={(e) => setF({ ...f, minSubjectsALevel: e.target.value })} /></span>
+            </div></div>
         </fieldset>
         <fieldset disabled={!editable} className={`${card} p-4 space-y-1.5`}>
           <p className="font-semibold text-sm">Stage due dates</p>

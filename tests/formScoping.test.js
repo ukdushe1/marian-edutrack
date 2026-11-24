@@ -140,3 +140,30 @@ describe('default exam paper', () => {
     expect(paperMaxMark({ questions: [{ no: '1', marks: 30 }, { no: '2', marks: 20 }] })).toBe(50);
   });
 });
+
+describe('minimum subjects for an overall position', () => {
+  it('A Level classes need 3; Forms 1–4 use the window minimum (5 unless changed)', async () => {
+    const { minSubjectsFor } = await import('../src/lib/termExam/model');
+    expect(minSubjectsFor({ minSubjects: 5 }, 'L6 Sciences')).toBe(3);
+    expect(minSubjectsFor({}, 'U6 Arts')).toBe(3);
+    expect(minSubjectsFor({ minSubjectsALevel: 4 }, 'L6 Arts')).toBe(4);
+    expect(minSubjectsFor({ minSubjects: 5 }, '3D1')).toBe(5);
+    expect(minSubjectsFor({}, '1E')).toBe(5);
+  });
+  it('an L6 learner with three subjects gets an overall position', async () => {
+    const { formResults } = await import('../src/lib/termExam/compute');
+    const subj = (id) => ({ id, code: id, name: id });
+    const data = {
+      win: { forms: ['l6'], gradeBands: [], minSubjects: 5 },
+      forms: [{ id: 'l6', name: 'L6 Arts' }],
+      students: [{ id: 's', classId: 'l6' }],
+      syllabi: ['a', 'b', 'c'].map(subj),
+      groups: ['a', 'b', 'c'].map((x) => ({ id: `g${x}`, syllabusId: x, studentIds: ['s'] })),
+      papers: ['a', 'b', 'c'].map((x) => ({ id: `p${x}`, syllabusId: x, maxMark: 100, questions: [{ no: '1', marks: 100 }] })),
+      marks: { 'pa|ga': { s: { raw: 60 } }, 'pb|gb': { s: { raw: 70 } }, 'pc|gc': { s: { raw: 80 } } },
+      sittings: {},
+    };
+    const res = formResults(data, 'l6');
+    expect(res.byStudent.s.overallPos).toBe(1);
+  });
+});

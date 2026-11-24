@@ -5,7 +5,8 @@
  *   examWindows/{id}     name, termId, startDate, endDate, courseworkFrom, nextTermOpens,
  *                        forms[] (student classId values), defaultSplit {exam, coursework},
  *                        subjects {[syllabusId]: {mode:'exam'|'examCoursework', exam, coursework}},
- *                        gradeBands [{grade,min}], minSubjects, stageDue {[stage]: date},
+ *                        gradeBands [{grade,min}], minSubjects (Forms 1–4), minSubjectsALevel (L6/U6),
+ *                        stageDue {[stage]: date},
  *                        approved/approvedBy, timetablePublished, resultsChecked/checkedBy,
  *                        published/publishedAt/version, formNotes {[formId]: note}
  *   examPapers/{id}      windowId, syllabusId, syllabusCode, paper, maxMark, duration,
@@ -25,6 +26,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { compareStudents } from '../studentOrder';
+import { formOf } from '../schoolSetup/schoolSetup';
 
 export const windowsCol   = () => collection(db, 'examWindows');
 export const windowRef    = (id) => doc(db, 'examWindows', id);
@@ -79,6 +81,16 @@ export function syllabusCourseworkWeight(syl) {
   const total = (syl?.components ?? []).reduce((a, c) => a + (Number(c.weight) || 0), 0);
   const w = cw.reduce((a, c) => a + (Number(c.weight) || 0), 0);
   return total > 0 && w > 0 ? Math.round((w / total) * 100) : null;
+}
+
+/**
+ * Minimum subjects a learner needs for an overall position: A Level classes
+ * (L6, U6 — Forms 5–6) need 3; Forms 1–4 use the window's minimum (default 5).
+ * @param className the class's name, e.g. "3D1" or "L6 Sciences"
+ */
+export function minSubjectsFor(win, className) {
+  const aLevel = (formOf(className ?? '') ?? 0) >= 5;
+  return aLevel ? Number(win?.minSubjectsALevel ?? 3) : Number(win?.minSubjects ?? 5);
 }
 
 /** Forms = distinct student.classId values (named from the classes collection when present). */

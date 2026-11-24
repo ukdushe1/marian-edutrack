@@ -62,7 +62,7 @@ export default function SetupFromTimetable() {
       } else {
         batch.set(windowRef(TIMETABLE_ID), {
           name: TIMETABLE_NAME, termId: state.term.id, startDate: dates[0], endDate: dates.at(-1), forms: plan.classIds,
-          defaultSplit: { exam: 70, coursework: 30 }, subjects: {}, gradeBands: DEFAULT_BANDS, minSubjects: 5,
+          defaultSplit: { exam: 70, coursework: 30 }, subjects: {}, gradeBands: DEFAULT_BANDS, minSubjects: 5, minSubjectsALevel: 3,
           courseworkFrom: '', nextTermOpens: '', stageDue: {},
           approved: false, timetablePublished: false, resultsChecked: false, published: false, version: 0,
           invigilatorLinks: links, createdAt: serverTimestamp(),

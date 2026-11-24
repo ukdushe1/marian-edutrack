@@ -7,7 +7,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { updateDoc, serverTimestamp } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { CheckCircle2, AlertTriangle, Loader2, Unlock } from 'lucide-react';
-import { windowRef, examAssessmentRef, windowSubjects, paperGroups } from '../../lib/termExam/model';
+import { windowRef, examAssessmentRef, windowSubjects, paperGroups, minSubjectsFor } from '../../lib/termExam/model';
 import { formResults, loadCoursework } from '../../lib/termExam/compute';
 import { fmtPct } from '../../lib/termExam/results';
 import { writeAuditLog } from '../../firebase/firestore';
@@ -113,7 +113,7 @@ export default function ResultsPanel({ data }) {
                       return <td key={s.id} className="px-2 text-center whitespace-nowrap">{x ? <>{x.grade} <span className="text-slate-400">{fmtPct(x.finalPct)}{x.position ? ` · ${x.position}/${res.subjectStats[s.id].outOf}` : ''}</span></> : ''}</td>;
                     })}
                     <td className="px-2 text-center">{fmtPct(r.overallAvg)}</td>
-                    <td className="px-2 text-center font-semibold">{r.overallPos ? `${r.overallPos}/${r.overallOutOf}` : <span className="text-slate-400 font-normal">{r.counted < (win.minSubjects ?? 5) ? `< ${win.minSubjects ?? 5} subj.` : '—'}</span>}</td>
+                    <td className="px-2 text-center font-semibold">{r.overallPos ? `${r.overallPos}/${r.overallOutOf}` : <span className="text-slate-400 font-normal">{r.counted < minSubjectsFor(win, forms.find((f) => f.id === formId)?.name) ? `< ${minSubjectsFor(win, forms.find((f) => f.id === formId)?.name)} subj.` : '—'}</span>}</td>
                   </tr>
                 );
               })}

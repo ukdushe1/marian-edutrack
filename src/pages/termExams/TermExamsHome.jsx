@@ -82,7 +82,7 @@ function CreateWindow({ onClose }) {
     try {
       const ref = await addDoc(windowsCol(), {
         ...f, defaultSplit: { exam: 70, coursework: 30 }, subjects: {}, gradeBands: DEFAULT_BANDS,
-        minSubjects: 5, courseworkFrom: '', nextTermOpens: '', stageDue: {},
+        minSubjects: 5, minSubjectsALevel: 3, courseworkFrom: '', nextTermOpens: '', stageDue: {},
         approved: false, timetablePublished: false, resultsChecked: false, published: false, version: 0,
         createdAt: serverTimestamp(),
       });
