@@ -61,3 +61,12 @@ describe('school setup import', () => {
     expect(planSchoolSetup([{ class: '1D', surname: 'X', firstName: '' }], []).errors[0]).toMatch(/surname and firstName/);
   });
 });
+
+describe('adding one student to a class', () => {
+  it('numbers the new record after the class’s last student, like a row added at the end', async () => {
+    const { nextStudentId, studentDocId } = await import('../src/lib/schoolSetup/schoolSetup');
+    expect(studentDocId('3D1', 7)).toBe('mhs-3d1-007');
+    expect(nextStudentId('3D1', ['mhs-3d1-001', 'mhs-3d1-035', 'mhs-3d2-040'])).toBe('mhs-3d1-036');
+    expect(nextStudentId('L6 Sciences', [])).toBe('mhs-l6-sciences-001');
+  });
+});

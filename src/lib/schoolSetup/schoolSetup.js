@@ -71,6 +71,17 @@ export const titleCase = (s) => String(s ?? '').trim().replace(/\s+/g, ' ').toLo
   .replace(/(^|[\s'-])([a-z])/g, (_, p, c) => p + c.toUpperCase());
 
 export const classDocId   = (cls) => `mhs-class-${slug(cls)}`;
+/** Student record id: the class and the position on its list (3D1 student 7 → mhs-3d1-007). */
+export const studentDocId = (cls, n) => `mhs-${slug(cls)}-${String(n).padStart(3, '0')}`;
+/**
+ * Id for a student added to the end of a class list: one after the highest number
+ * already used, so it matches adding a row at the end of that class in the spreadsheet.
+ */
+export function nextStudentId(cls, existingIds) {
+  const prefix = `mhs-${slug(cls)}-`;
+  const used = existingIds.filter((id) => id.startsWith(prefix)).map((id) => Number(id.slice(prefix.length))).filter(Number.isFinite);
+  return studentDocId(cls, (used.length ? Math.max(...used) : 0) + 1);
+}
 export const syllabusDocId = (key, form) => `mhs-${subjectAt(key, form).code}`.toLowerCase();
 
 const A_LEVEL_COMPONENTS = {
@@ -144,7 +155,7 @@ export function planSchoolSetup(studentRows, subjectRows, { year = new Date().ge
     const classId = classDocId(cls);
     classes.set(classId, { path: `classes/${classId}`, data: { name: cls, form, year, source: 'schoolSetup' } });
     const ids = list.map((s, n) => {
-      const id = `mhs-${slug(cls)}-${String(n + 1).padStart(3, '0')}`;
+      const id = studentDocId(cls, n + 1);
       students.push({ path: `students/${id}`, data: { ...s, preferredName: '', classId, status: 'active', source: 'schoolSetup' } });
       return id;
     });
