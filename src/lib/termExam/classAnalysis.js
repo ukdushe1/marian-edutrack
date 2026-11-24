@@ -144,3 +144,62 @@ export function explainAnalysis(className, analysis, learners) {
   }
   return lines;
 }
+
+/**
+ * One learner's results against their class.
+ * @param res formResults() output for the learner's class; sid the learner
+ * @returns { rows: [{ id, name, heading, pct, grade, classAvg, diff, position, outOf }], summary }
+ */
+export function learnerAnalysis(res, sid, bands) {
+  const pm = passMark(bands);
+  const me = res.byStudent[sid];
+  if (!me) return null;
+  const rows = [...res.subjects].sort((a, b) => subjectOrder(a) - subjectOrder(b))
+    .filter((s) => me.subjects[s.id])
+    .map((s) => {
+      const x = me.subjects[s.id];
+      const classAvg = res.subjectStats?.[s.id]?.average ?? null;
+      return { id: s.id, name: s.name, heading: shortHeading(s), pct: x.finalPct, grade: x.grade,
+        classAvg, diff: x.finalPct != null && classAvg != null ? x.finalPct - classAvg : null,
+        position: x.position ?? null, outOf: res.subjectStats?.[s.id]?.outOf ?? null };
+    });
+  const marked = rows.filter((r) => r.pct != null);
+  const grades = {};
+  marked.forEach((r) => { grades[r.grade] = (grades[r.grade] ?? 0) + 1; });
+  return {
+    rows,
+    summary: {
+      average: me.overallAvg, position: me.overallPos, outOf: me.overallOutOf, subjects: rows.length, marked: marked.length,
+      passes: marked.filter((r) => r.pct >= pm).length, passMark: pm, grades,
+      above: marked.filter((r) => r.diff != null && r.diff > 0).length,
+      below: marked.filter((r) => r.diff != null && r.diff < 0).length,
+    },
+  };
+}
+
+/** A short written analysis of one learner's results. */
+export function explainLearner(student, analysis) {
+  if (!analysis) return [];
+  const { rows, summary: s } = analysis;
+  const name = student.firstName;
+  const marked = rows.filter((r) => r.pct != null);
+  if (!marked.length) return [`No marks have been recorded for ${name} yet.`];
+  const lines = [];
+  lines.push(`${name} averages ${pct(s.average ?? 0)} across ${s.marked} subject${s.marked === 1 ? '' : 's'}${s.position ? `, placing ${s.position} of ${s.outOf} in the class` : ''}.`);
+  lines.push(`${s.passes} of ${s.marked} subjects are at grade C or better (pass mark ${s.passMark}%); ${s.above} above the class average and ${s.below} below it.`);
+  const byDiff = marked.filter((r) => r.diff != null).sort((a, b) => b.diff - a.diff);
+  if (byDiff.length) {
+    const best = byDiff[0], worst = byDiff.at(-1);
+    if (best.diff > 0) lines.push(`Strongest against the class: ${best.name} — ${pct(best.pct)} (grade ${best.grade}), ${round1(best.diff)} points above the class average.`);
+    if (worst.diff < 0) lines.push(`Needs most attention: ${worst.name} — ${pct(worst.pct)} (grade ${worst.grade}), ${round1(Math.abs(worst.diff))} points below the class average.`);
+  }
+  const failing = marked.filter((r) => r.pct < s.passMark);
+  if (failing.length) lines.push(`Below a pass in: ${failing.map((r) => `${r.name} (${pct(r.pct)})`).join(', ')}.`);
+  const absent = rows.filter((r) => r.pct == null);
+  if (absent.length) lines.push(`No result (absent or not marked) in: ${absent.map((r) => r.name).join(', ')}.`);
+  if (s.position && s.outOf > 1) {
+    const top = Math.max(1, Math.round((s.position / s.outOf) * 100));
+    lines.push(top <= 25 ? `This is in the top quarter of the class.` : top > 75 ? `This is in the bottom quarter of the class.` : `This is in the middle half of the class.`);
+  }
+  return lines;
+}

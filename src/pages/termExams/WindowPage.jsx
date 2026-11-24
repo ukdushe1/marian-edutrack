@@ -13,6 +13,8 @@ import MarkingPanel from './MarkingPanel';
 import ModerationPanel from './ModerationPanel';
 import ResultsPanel from './ResultsPanel';
 import SchedulePanel from './SchedulePanel';
+import LearnerPanel from './LearnerPanel';
+import { useAuth } from '../../contexts/AuthContext';
 import CommentsPanel from './CommentsPanel';
 import ApprovalPanel from './ApprovalPanel';
 import ReportCardsPanel from './ReportCardsPanel';
@@ -27,6 +29,7 @@ const TABS = [
   ['moderation', '6 Moderation', ModerationPanel],
   ['results', '7 Results', ResultsPanel],
   ['schedule', 'Class schedules', SchedulePanel],
+  ['learner', 'Learner analysis', LearnerPanel, 'admin'], // System Admin and the Principal only
   ['comments', '8 Comments', CommentsPanel],
   ['approval', '9 Approval', ApprovalPanel],
   ['cards', '10 Report cards', ReportCardsPanel],
@@ -35,13 +38,15 @@ const TABS = [
 export default function WindowPage() {
   const { windowId } = useParams();
   const data = useWindowData(windowId);
+  const { hasRole } = useAuth();
+  const tabs = TABS.filter(([, , , only]) => only !== 'admin' || hasRole('superAdmin')); // Principal has superAdmin
   const [tab, setTab] = useState(() => new URLSearchParams(window.location.search).get('tab') ?? 'control');
 
   if (data.notFound) return <p className="text-sm text-slate-500">This exam window no longer exists. <Link className="text-brand-600" to="/exams/term">Back</Link></p>;
   if (data.loading) return <p className="flex items-center gap-2 text-sm text-slate-400"><Loader2 size={14} className="animate-spin" /> Loading exam window…</p>;
   if (data.error) return <p className="text-sm text-red-600">Could not load: {data.error}</p>;
 
-  const Panel = TABS.find(([k]) => k === tab)?.[2] ?? ControlPanel;
+  const Panel = tabs.find(([k]) => k === tab)?.[2] ?? ControlPanel;
 
   return (
     <div className="space-y-4 max-w-6xl">
@@ -54,7 +59,7 @@ export default function WindowPage() {
         </p>
       </div>
       <div className="print:hidden flex gap-1 overflow-x-auto border-b border-slate-200 dark:border-slate-700 -mx-1 px-1">
-        {TABS.map(([k, label]) => (
+        {tabs.map(([k, label]) => (
           <button key={k} onClick={() => setTab(k)}
             className={clsx('whitespace-nowrap px-3 py-2 text-xs font-medium border-b-2 -mb-px transition-colors',
               tab === k ? 'border-brand-600 text-brand-700 dark:text-brand-300' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200')}>

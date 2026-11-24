@@ -66,3 +66,18 @@ describe('results analysis by subject by grade', () => {
     expect(text).toMatch(/Girls average 62.5% and boys 30%/);
   });
 });
+
+describe('learner analysis', () => {
+  it('compares one learner with the class and explains it', async () => {
+    const { learnerAnalysis, explainLearner } = await import('../src/lib/termExam/classAnalysis');
+    const withStats = { ...res, subjectStats: { mat: { average: 55, outOf: 3 }, eng: { average: 57.5, outOf: 2 } } };
+    withStats.byStudent.g2.subjects.mat.position = 2;
+    const a = learnerAnalysis(withStats, 'g2', bands);
+    expect(a.rows.map((r) => [r.heading, r.pct, r.grade, r.diff])).toEqual([['ENG', 45, 'D', -12.5], ['MATHS', 55, 'C', 0]]);
+    expect(a.summary).toMatchObject({ average: 50, position: 2, outOf: 3, passes: 1, marked: 2, above: 0, below: 1 });
+    const text = explainLearner(students[1], a).join(' ');
+    expect(text).toMatch(/Beth averages 50% across 2 subjects, placing 2 of 3/);
+    expect(text).toMatch(/Needs most attention: First Language English — 45% \(grade D\), 12.5 points below/);
+    expect(text).toMatch(/Below a pass in: First Language English \(45%\)/);
+  });
+});
