@@ -5,7 +5,7 @@
  *   examWindows/{id}     name, termId, startDate, endDate, courseworkFrom, nextTermOpens,
  *                        forms[] (student classId values), defaultSplit {exam, coursework},
  *                        subjects {[syllabusId]: {mode:'exam'|'examCoursework', exam, coursework}},
- *                        gradeBands [{grade,min}], minSubjects (Forms 1–4), minSubjectsALevel (L6/U6),
+ *                        gradeBands (IGCSE, Forms 1–4), gradeBandsALevel (L6/U6) [{grade,min}], minSubjects (Forms 1–4), minSubjectsALevel (L6/U6),
  *                        stageDue {[stage]: date},
  *                        approved/approvedBy, timetablePublished, resultsChecked/checkedBy,
  *                        published/publishedAt/version, formNotes {[formId]: note}
@@ -66,10 +66,34 @@ export const SITTING_STATUS = [
 export const EFFORT = ['A', 'B', 'C', 'D', 'E'];
 export const EFFORT_LABEL = { A: 'Excellent', B: 'Good', C: 'Satisfactory', D: 'Needs effort', E: 'Poor' };
 
-export const DEFAULT_BANDS = [
-  { grade: 'A', min: 75 }, { grade: 'B', min: 65 }, { grade: 'C', min: 50 },
-  { grade: 'D', min: 40 }, { grade: 'E', min: 30 }, { grade: 'U', min: 0 },
+/**
+ * Cambridge grades with the school's 10-point % bands. Cambridge sets real thresholds
+ * per paper each series; internal exams use fixed bands. Pass = C or better (60%).
+ */
+export const CAMBRIDGE_IGCSE_BANDS = [
+  { grade: 'A*', min: 90 }, { grade: 'A', min: 80 }, { grade: 'B', min: 70 }, { grade: 'C', min: 60 },
+  { grade: 'D', min: 50 }, { grade: 'E', min: 40 }, { grade: 'F', min: 30 }, { grade: 'G', min: 20 }, { grade: 'U', min: 0 },
 ];
+export const CAMBRIDGE_ALEVEL_BANDS = [
+  { grade: 'A*', min: 90 }, { grade: 'A', min: 80 }, { grade: 'B', min: 70 }, { grade: 'C', min: 60 },
+  { grade: 'D', min: 50 }, { grade: 'E', min: 40 }, { grade: 'U', min: 0 },
+];
+export const DEFAULT_BANDS = CAMBRIDGE_IGCSE_BANDS;
+
+// The bands windows were created with before Cambridge grading (A 75, B 65, C 50…)
+const OLD_DEFAULT = 'A75B65C50D40E30U0';
+const sig = (bands) => [...bands].sort((x, y) => y.min - x.min).map((x) => `${x.grade}${x.min}`).join('');
+
+/**
+ * Grade bands for a class: A Level classes (L6, U6) use the window's A Level bands
+ * (default A*–E, U); Forms 1–4 the IGCSE bands (default A*–G, U). A window still on
+ * the old pre-Cambridge default is graded with the Cambridge bands.
+ */
+export function bandsFor(win, className) {
+  if ((formOf(className ?? '') ?? 0) >= 5) return win?.gradeBandsALevel?.length ? win.gradeBandsALevel : CAMBRIDGE_ALEVEL_BANDS;
+  const b = win?.gradeBands;
+  return b?.length && sig(b) !== OLD_DEFAULT ? b : CAMBRIDGE_IGCSE_BANDS;
+}
 
 /** A syllabus requires coursework if a component looks like coursework/practical/project. */
 export function syllabusRequiresCoursework(syl) {

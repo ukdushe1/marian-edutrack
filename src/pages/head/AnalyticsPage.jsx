@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { BarChart2, Loader2 } from 'lucide-react';
+import { bandsFor, CAMBRIDGE_IGCSE_BANDS, CAMBRIDGE_ALEVEL_BANDS } from '../../lib/termExam/model';
 
 // Ordinal grades → one hue, dark (best) to light; U neutral gray
 const GRADE_SHADE = ['#1e3a8a', '#1d4ed8', '#3b82f6', '#93c5fd', '#dbeafe', '#cbd5e1', '#e2e8f0'];
@@ -15,9 +16,11 @@ const pct = (v) => (v == null ? '—' : `${Math.round(v * 10) / 10}%`);
 const mean = (a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : null);
 
 function summarise(snaps, win) {
-  const bands = [...(win?.gradeBands ?? [])].sort((a, b) => b.min - a.min);
-  const passMin = bands.find((b) => b.grade === 'C')?.min ?? 50;
-  const grades = bands.length ? bands.map((b) => b.grade) : ['A', 'B', 'C', 'D', 'E', 'U'];
+  // IGCSE and A Level classes are graded on their own Cambridge bands; list every grade used
+  const igcse = [...bandsFor(win, '')].sort((a, b) => b.min - a.min);
+  const passMin = igcse.find((b) => b.grade === 'C')?.min ?? 60;
+  const order = [...new Set([...igcse, ...bandsFor(win, 'L6')].sort((a, b) => b.min - a.min).map((b) => b.grade))];
+  const grades = order.length ? order : [...CAMBRIDGE_IGCSE_BANDS, ...CAMBRIDGE_ALEVEL_BANDS].map((b) => b.grade);
   const subjects = {};
   for (const s of snaps) for (const x of s.subjects ?? []) {
     const o = (subjects[x.code] ??= { code: x.code, name: x.name, finals: [], grades: {}, forms: {} });

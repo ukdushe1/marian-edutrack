@@ -9,7 +9,7 @@ import { Printer, Download, Loader2, Upload, X } from 'lucide-react';
 import { setDoc, serverTimestamp } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { formResults } from '../../lib/termExam/compute';
-import { groupFor, paperMaxMark, paperQuestions, paperForClass, examAssessmentRef } from '../../lib/termExam/model';
+import { groupFor, paperMaxMark, paperQuestions, paperForClass, examAssessmentRef, bandsFor } from '../../lib/termExam/model';
 import { classMarkColumns, classMarksTemplate, planClassMarksImport } from '../../lib/termExam/classMarksImport';
 import { applyExamImport } from '../../lib/termExam/examSync';
 import { writeAuditLog } from '../../firebase/firestore';
@@ -46,13 +46,13 @@ export default function SchedulePanel({ data }) {
       return raw == null || !max ? null : (raw / max) * 100;
     };
     const schedule = buildSchedule(enriched, paperPct);
-    const analysis = analyseClass(enriched, win.gradeBands, schedule);
+    const analysis = analyseClass(enriched, bandsFor(win, className), schedule);
     // Every paper the class sits, per subject in school order, for the class marks template
     const columns = classMarkColumns(schedule.subjects.map((s) => ({
       ...s, papers: enriched.subjects.find((x) => x.id === s.id).papers.map((p) => ({ id: p.id, label: p.label, max: paperMaxMark(paperById[p.id]) })),
     })));
     return { schedule, analysis, text: explainAnalysis(className, analysis, schedule.learners), columns, paperById, res };
-  }, [cw, formId, data, win.gradeBands, className]);
+  }, [cw, formId, data, win, className]);
 
   if (!forms.length) return <Note>No classes in this window.</Note>;
   if (!view) return <p className="flex items-center gap-2 text-sm text-slate-400"><Loader2 size={14} className="animate-spin" /> Calculating…</p>;
@@ -303,7 +303,7 @@ export default function SchedulePanel({ data }) {
 
         <div className="grid lg:grid-cols-2 gap-4">
           <PassRateChart subjects={analysis.subjects.filter((s) => s.graded)} />
-          <GradeBandsChart subjects={analysis.subjects.filter((s) => s.graded)} bands={win.gradeBands} passMark={analysis.passMark} />
+          <GradeBandsChart subjects={analysis.subjects.filter((s) => s.graded)} bands={bandsFor(win, className)} passMark={analysis.passMark} />
         </div>
 
         <div>

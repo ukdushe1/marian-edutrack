@@ -167,3 +167,22 @@ describe('minimum subjects for an overall position', () => {
     expect(res.byStudent.s.overallPos).toBe(1);
   });
 });
+
+describe('Cambridge grading', () => {
+  it('IGCSE classes A*–G, A Level classes A*–E; the old default switches to Cambridge', async () => {
+    const { bandsFor } = await import('../src/lib/termExam/model');
+    const { gradeFor } = await import('../src/lib/termExam/results');
+    const { passMark } = await import('../src/lib/termExam/classAnalysis');
+    const old = [{ grade: 'A', min: 75 }, { grade: 'B', min: 65 }, { grade: 'C', min: 50 }, { grade: 'D', min: 40 }, { grade: 'E', min: 30 }, { grade: 'U', min: 0 }];
+    const ig = bandsFor({ gradeBands: old }, '3D1');
+    const al = bandsFor({ gradeBands: old }, 'L6 Sciences');
+    expect(ig.map((b) => b.grade)).toEqual(['A*', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'U']);
+    expect(al.map((b) => b.grade)).toEqual(['A*', 'A', 'B', 'C', 'D', 'E', 'U']);
+    expect([92, 85, 75, 61, 55, 45, 35, 25, 10].map((p) => gradeFor(p, ig))).toEqual(['A*', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'U']);
+    expect([35, 39.9, 40].map((p) => gradeFor(p, al))).toEqual(['U', 'U', 'E']);
+    expect(passMark(ig)).toBe(60);
+    // Bands the school has customised are kept
+    const custom = [{ grade: 'A*', min: 85 }, { grade: 'U', min: 0 }];
+    expect(bandsFor({ gradeBands: custom }, '1E')).toBe(custom);
+  });
+});

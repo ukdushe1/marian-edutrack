@@ -4,7 +4,7 @@
 import { collection, getDocs, query, where, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { computeForm, averagePercent } from './results';
-import { windowSubjects, subjectWeights, groupFor, paperForClass, paperMaxMark, minSubjectsFor, DEFAULT_BANDS } from './model';
+import { windowSubjects, subjectWeights, groupFor, paperForClass, paperMaxMark, minSubjectsFor, bandsFor } from './model';
 
 const COURSEWORK_COMPONENTS = /course\s*work|practical|project|school[-\s]?based|\bsba\b/i;
 
@@ -71,7 +71,7 @@ export function formResults(data, formId, coursework = {}) {
   }
   const res = computeForm({
     students: formStudents, subjects, takes, marks: markIn, sittings, coursework,
-    bands: win.gradeBands?.length ? win.gradeBands : DEFAULT_BANDS,
+    bands: bandsFor(win, data.forms?.find((f) => f.id === formId)?.name),
     minSubjects: minSubjectsFor(win, data.forms?.find((f) => f.id === formId)?.name),
   });
   return { ...res, subjects, students: formStudents };

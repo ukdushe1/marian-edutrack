@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { updateDoc, serverTimestamp } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { CheckCircle2, Plus, X } from 'lucide-react';
-import { windowRef, windowSubjects, subjectWeights, syllabusRequiresCoursework, STAGES, DEFAULT_BANDS } from '../../lib/termExam/model';
+import { windowRef, windowSubjects, subjectWeights, syllabusRequiresCoursework, STAGES, bandsFor, CAMBRIDGE_IGCSE_BANDS, CAMBRIDGE_ALEVEL_BANDS } from '../../lib/termExam/model';
 import { card, input, label, btn, btnGhost, Note, useExamRoles, userName } from './ui';
 
 export default function SetupPanel({ data }) {
@@ -15,7 +15,8 @@ export default function SetupPanel({ data }) {
     courseworkFrom: win.courseworkFrom ?? '', nextTermOpens: win.nextTermOpens ?? '',
     defaultSplit: win.defaultSplit ?? { exam: 70, coursework: 30 },
     subjects: Object.fromEntries(subjects.map((s) => [s.id, subjectWeights(win, s)])),
-    gradeBands: win.gradeBands?.length ? win.gradeBands : DEFAULT_BANDS,
+    gradeBands: bandsFor(win, ''),          // IGCSE (Forms 1–4)
+    gradeBandsALevel: bandsFor(win, 'L6'),  // A Level (L6, U6)
     minSubjects: win.minSubjects ?? 5,
     minSubjectsALevel: win.minSubjectsALevel ?? 3,
     stageDue: win.stageDue ?? {},
@@ -41,7 +42,8 @@ export default function SetupPanel({ data }) {
       const reapprove = win.approved && !roles.canApprove;
       await updateDoc(windowRef(win.id), {
         ...f, minSubjects: Number(f.minSubjects), minSubjectsALevel: Number(f.minSubjectsALevel),
-        gradeBands: f.gradeBands.map((b) => ({ grade: b.grade.trim(), min: Number(b.min) })).sort((a, b) => b.min - a.min),
+        gradeBands: cleanBands(f.gradeBands),
+        gradeBandsALevel: cleanBands(f.gradeBandsALevel),
         ...(reapprove ? { approved: false, approvedBy: null } : {}),
         updatedAt: serverTimestamp(),
       });
@@ -107,19 +109,16 @@ export default function SetupPanel({ data }) {
 
       <div className="grid sm:grid-cols-2 gap-4">
         <fieldset disabled={!editable} className={`${card} p-4 space-y-2`}>
-          <p className="font-semibold text-sm">Grade bands (school %)</p>
-          {f.gradeBands.map((b, i) => (
-            <div key={i} className="flex items-center gap-2 text-sm">
-              <input className="w-14 border rounded px-1.5 py-0.5 dark:bg-slate-900 dark:border-slate-600" value={b.grade}
-                onChange={(e) => setF({ ...f, gradeBands: f.gradeBands.map((x, j) => (j === i ? { ...x, grade: e.target.value } : x)) })} />
-              <span className="text-xs text-slate-500">from</span>
-              <input type="number" className="w-16 border rounded px-1.5 py-0.5 dark:bg-slate-900 dark:border-slate-600" value={b.min}
-                onChange={(e) => setF({ ...f, gradeBands: f.gradeBands.map((x, j) => (j === i ? { ...x, min: e.target.value } : x)) })} />
-              <span className="text-xs text-slate-500">%</span>
-              <button type="button" onClick={() => setF({ ...f, gradeBands: f.gradeBands.filter((_, j) => j !== i) })} className="text-slate-400"><X size={12} /></button>
-            </div>
-          ))}
-          <button type="button" className={btnGhost} onClick={() => setF({ ...f, gradeBands: [...f.gradeBands, { grade: '', min: 0 }] })}><Plus size={12} /> Band</button>
+          <div className="flex items-center justify-between gap-2">
+            <p className="font-semibold text-sm">Grade bands — Cambridge (school %)</p>
+            <button type="button" className="text-xs text-brand-600 hover:underline"
+              onClick={() => setF({ ...f, gradeBands: CAMBRIDGE_IGCSE_BANDS, gradeBandsALevel: CAMBRIDGE_ALEVEL_BANDS })}>Use Cambridge bands</button>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <BandEditor title="IGCSE (Forms 1–4)" bands={f.gradeBands} onChange={(gradeBands) => setF({ ...f, gradeBands })} />
+            <BandEditor title="A Level (L6, U6)" bands={f.gradeBandsALevel} onChange={(gradeBandsALevel) => setF({ ...f, gradeBandsALevel })} />
+          </div>
+          <p className="text-[11px] text-slate-400">Pass = C or better. Each grade starts at the % shown.</p>
           <div className="pt-2"><label className={label}>Minimum subjects for an overall position</label>
             <div className="flex flex-wrap items-center gap-3 text-sm">
               <span>Forms 1–4 <input type="number" min={1} aria-label="Minimum subjects, Forms 1 to 4" className="w-16 border rounded px-1.5 py-0.5 dark:bg-slate-900 dark:border-slate-600" value={f.minSubjects} onChange={(e) => setF({ ...f, minSubjects: e.target.value })} /></span>
@@ -140,6 +139,28 @@ export default function SetupPanel({ data }) {
       </div>
 
       {editable && <button className={btn} onClick={save} disabled={busy}>{busy ? 'Saving…' : 'Save setup'}</button>}
+    </div>
+  );
+}
+
+const cleanBands = (bands) => bands.map((b) => ({ grade: String(b.grade).trim(), min: Number(b.min) })).filter((b) => b.grade).sort((a, b) => b.min - a.min);
+
+function BandEditor({ title, bands, onChange }) {
+  return (
+    <div className="space-y-1">
+      <p className="text-xs font-medium text-slate-500">{title}</p>
+      {bands.map((b, i) => (
+        <div key={i} className="flex items-center gap-1.5 text-sm">
+          <input aria-label={`${title} grade`} className="w-11 border rounded px-1.5 py-0.5 dark:bg-slate-900 dark:border-slate-600" value={b.grade}
+            onChange={(e) => onChange(bands.map((x, j) => (j === i ? { ...x, grade: e.target.value } : x)))} />
+          <span className="text-xs text-slate-500">from</span>
+          <input aria-label={`${title} minimum %`} type="number" className="w-14 border rounded px-1.5 py-0.5 dark:bg-slate-900 dark:border-slate-600" value={b.min}
+            onChange={(e) => onChange(bands.map((x, j) => (j === i ? { ...x, min: e.target.value } : x)))} />
+          <span className="text-xs text-slate-500">%</span>
+          <button type="button" aria-label="Remove band" onClick={() => onChange(bands.filter((_, j) => j !== i))} className="text-slate-400"><X size={12} /></button>
+        </div>
+      ))}
+      <button type="button" className={btnGhost} onClick={() => onChange([...bands, { grade: '', min: 0 }])}><Plus size={12} /> Band</button>
     </div>
   );
 }
