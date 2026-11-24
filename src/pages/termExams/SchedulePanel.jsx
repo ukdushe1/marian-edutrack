@@ -5,9 +5,15 @@
  */
 import { useMemo, useState } from 'react';
 import * as XLSX from 'xlsx';
-import { Printer, Download, Loader2 } from 'lucide-react';
+import { Printer, Download, Loader2, Upload, X } from 'lucide-react';
+import { setDoc, serverTimestamp } from 'firebase/firestore';
+import toast from 'react-hot-toast';
 import { formResults } from '../../lib/termExam/compute';
-import { groupFor, paperMaxMark } from '../../lib/termExam/model';
+import { groupFor, paperMaxMark, paperQuestions, paperForClass, examAssessmentRef } from '../../lib/termExam/model';
+import { classMarkColumns, classMarksTemplate, planClassMarksImport } from '../../lib/termExam/classMarksImport';
+import { applyExamImport } from '../../lib/termExam/examSync';
+import { writeAuditLog } from '../../firebase/firestore';
+import { useAuth } from '../../contexts/AuthContext';
 import { buildSchedule, analyseClass, explainAnalysis, sortBands } from '../../lib/termExam/classAnalysis';
 import { fmtPct } from '../../lib/termExam/results';
 import { useCoursework } from './ResultsPanel';
@@ -21,6 +27,10 @@ export default function SchedulePanel({ data }) {
   const [formId, setFormId] = useState(forms[0]?.id ?? '');
   const cw = useCoursework(data);
   const className = forms.find((f) => f.id === formId)?.name ?? '';
+  const { hasRole, firebaseUser } = useAuth();
+  const isAdmin = hasRole('superAdmin'); // whole-class, every-subject import: System Admin only
+  const [importPlan, setImportPlan] = useState(null);
+  const [importing, setImporting] = useState(false);
 
   const view = useMemo(() => {
     if (!cw || !formId) return null;
@@ -37,12 +47,82 @@ export default function SchedulePanel({ data }) {
     };
     const schedule = buildSchedule(enriched, paperPct);
     const analysis = analyseClass(enriched, win.gradeBands, schedule);
-    return { schedule, analysis, text: explainAnalysis(className, analysis, schedule.learners) };
+    // Every paper the class sits, per subject in school order, for the class marks template
+    const columns = classMarkColumns(schedule.subjects.map((s) => ({
+      ...s, papers: enriched.subjects.find((x) => x.id === s.id).papers.map((p) => ({ id: p.id, label: p.label, max: paperMaxMark(paperById[p.id]) })),
+    })));
+    return { schedule, analysis, text: explainAnalysis(className, analysis, schedule.learners), columns, paperById, res };
   }, [cw, formId, data, win.gradeBands, className]);
 
   if (!forms.length) return <Note>No classes in this window.</Note>;
   if (!view) return <p className="flex items-center gap-2 text-sm text-slate-400"><Loader2 size={14} className="animate-spin" /> Calculating…</p>;
-  const { schedule, analysis, text } = view;
+  const { schedule, analysis, text, columns, paperById, res } = view;
+  const classStudents = schedule.rows.map((r) => r.student);
+
+  function downloadTemplate() {
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(classMarksTemplate(classStudents, columns));
+    ws['!cols'] = [{ hidden: true }, { wch: 28 }];
+    XLSX.utils.book_append_sheet(wb, ws, 'Marks');
+    XLSX.writeFile(wb, `${className} class marks.xlsx`);
+  }
+  function readFile(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    file.arrayBuffer().then((buf) => {
+      const wb = XLSX.read(buf, { type: 'array' });
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
+      const takes = (sid, subjId) => !!res.byStudent[sid]?.subjects?.[subjId];
+      setImportPlan({ fileName: file.name, ...planClassMarksImport({ rows, students: classStudents, columns, takes }) });
+    }).catch(() => toast.error('Could not read that file. Use .xlsx or .csv.'));
+  }
+  async function applyImport() {
+    setImporting(true);
+    let saved = 0, absent = 0, submitted = 0;
+    try {
+      for (const c of importPlan.columns) {
+        const ups = importPlan.updates[c.paperId];
+        if (!ups) continue;
+        const paper = paperById[c.paperId];
+        const qs = paperQuestions(paper);
+        // One markbook per paper × teaching group
+        const byGroup = {};
+        for (const [sid, e] of Object.entries(ups)) {
+          const g = groupFor(data.groups, sid, c.subjectId);
+          if (g) (byGroup[g.id] ??= { g, ups: {} }).ups[sid] = e;
+        }
+        for (const { g, ups: gu } of Object.values(byGroup)) {
+          const key = `${paper.id}|${g.id}`;
+          let assessment = data.assessments[key];
+          if (!assessment) {
+            assessment = { title: `${paper.paper} — ${win.name}`, component: 'Exam', maxMark: paperMaxMark(paper), date: paper.date ?? win.endDate,
+              examPaperId: paper.id, windowId: win.id, questions: qs, submitted: false, locked: false };
+            await setDoc(examAssessmentRef(g.id, paper.id), { ...assessment, createdBy: firebaseUser.uid, createdAt: serverTimestamp() });
+          }
+          const candidateIds = (g.studentIds ?? []).filter((sid) => { const st = data.students.find((x) => x.id === sid); return st && paperForClass(paper, st.classId); });
+          const r = await applyExamImport({
+            paper, windowId: win.id, groupId: g.id, assessment, candidateIds,
+            entryUpdates: Object.fromEntries(Object.entries(gu).filter(([, e]) => e.raw != null)
+              .map(([sid, e]) => [sid, { raw: e.raw, perQuestion: qs.length === 1 ? { [qs[0].no]: e.raw } : {} }])),
+            statusUpdates: Object.fromEntries(Object.entries(gu).filter(([, e]) => e.status).map(([sid, e]) => [sid, e.status])),
+            entriesBefore: data.marks[key] ?? {},
+            sittingsBefore: Object.fromEntries(candidateIds.map((sid) => [sid, data.sittings[sid]?.[paper.id]]).filter(([, v]) => v)),
+            uid: firebaseUser.uid,
+          });
+          saved += Object.keys(gu).length;
+          absent += r.sittingChanges.filter((x) => x.status !== 'present').length;
+          if (r.submitted) submitted++;
+        }
+      }
+      writeAuditLog(firebaseUser.uid, 'marks', `examWindows/${win.id}`, { imported: importPlan.fileName, class: className },
+        { subjects: importPlan.columns.map((c) => c.header), marks: saved }).catch(() => {});
+      toast.success([`${saved} marks imported for ${className}`, absent ? `${absent} recorded absent` : '', submitted ? `${submitted} markbook${submitted > 1 ? 's' : ''} submitted to HODs` : ''].filter(Boolean).join(' · '), { duration: 6000 });
+      setImportPlan(null);
+      data.reload();
+    } catch (err) { toast.error(`Import stopped: ${err.code ?? err.message}. It is safe to run again.`); }
+    setImporting(false);
+  }
   const year = (win.startDate ?? '').slice(0, 4) || new Date().getFullYear();
 
   function exportExcel() {
@@ -84,8 +164,43 @@ export default function SchedulePanel({ data }) {
         </select>
         <button className={btnGhost} onClick={() => window.print()}><Printer size={13} /> Print</button>
         <button className={btnGhost} onClick={exportExcel}><Download size={13} /> Export to Excel</button>
+        {isAdmin && !win.published && (
+          <>
+            <button className={btnGhost} onClick={downloadTemplate}><Download size={13} /> Class marks template</button>
+            <label className={`${btnGhost} cursor-pointer`}><Upload size={13} /> Import class marks
+              <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={readFile} />
+            </label>
+          </>
+        )}
         {!win.resultsChecked && <span className="text-xs text-amber-700 dark:text-amber-300">Provisional: results are not signed off yet.</span>}
       </div>
+
+      {importPlan && (
+        <div className={`${card} p-4 space-y-2 text-sm print:hidden`}>
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <p><strong>{importPlan.fileName}</strong> → {className}</p>
+              <ul className="text-xs text-slate-600 dark:text-slate-300 mt-1 columns-2 sm:columns-3">
+                {importPlan.columns.map((c) => <li key={c.paperId}>{c.header}: {c.count} mark{c.count === 1 ? '' : 's'}</li>)}
+              </ul>
+            </div>
+            <button onClick={() => setImportPlan(null)} className="p-1" aria-label="Cancel import"><X size={14} /></button>
+          </div>
+          {[...importPlan.errors, ...importPlan.unmatched, ...importPlan.ignored].length > 0 && (
+            <ul className="list-disc pl-5 text-xs text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-900/20 rounded-lg py-2 pr-2 max-h-40 overflow-y-auto">
+              {[...importPlan.errors, ...importPlan.unmatched, ...importPlan.ignored].map((m) => <li key={m}>{m}</li>)}
+            </ul>
+          )}
+          <p className="text-xs text-slate-500">Saves each subject’s End of Term marks, records A / X in Sitting, and submits a class markbook to its HOD when it is complete. Marks already entered for these students are replaced.</p>
+          <div className="flex gap-2">
+            <button onClick={applyImport} disabled={importing || !Object.keys(importPlan.updates).length}
+              className="flex items-center gap-1.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-60 text-white text-sm font-medium px-3 py-1.5 rounded-lg">
+              {importing ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />} Save class marks
+            </button>
+            <button onClick={() => setImportPlan(null)} className={btnGhost}>Cancel</button>
+          </div>
+        </div>
+      )}
 
       {/* ── Mark schedule ─────────────────────────────────────────── */}
       <section className={`${card} p-4 print:border-0 print:p-0`}>
