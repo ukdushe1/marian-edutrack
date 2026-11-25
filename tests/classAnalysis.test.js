@@ -25,26 +25,24 @@ const res = {
     b1: { subjects: { mat: S(30, 'E'), eng: S(null, 'X') }, overallAvg: 30, overallPos: 3, overallOutOf: 3 },
   },
 };
-const paperPct = (sid, s, p) => ({ g1: { p1: 82, p5: 78 }, g2: { p1: 60, p5: 50 }, b1: { p1: 30, p5: 30 } })[sid]?.[p.id] ?? null;
 const bands = [{ grade: 'A', min: 75 }, { grade: 'B', min: 65 }, { grade: 'C', min: 50 }, { grade: 'D', min: 40 }, { grade: 'E', min: 30 }, { grade: 'U', min: 0 }];
 
 describe('class mark schedule', () => {
-  const sch = buildSchedule(res, paperPct);
-  it('uses the school headings and order; multi-paper subjects get paper columns', () => {
+  const sch = buildSchedule(res);
+  it('uses the school headings and order; one final mark per subject, no paper columns', () => {
     expect(sch.subjects.map((s) => s.heading)).toEqual(['ENG', 'MATHS']);
-    expect(sch.subjects[1].papers.map((p) => p.label)).toEqual(['Pure P1', 'Stats 1 (P5)']);
-    expect(sch.subjects[0].papers).toEqual([]);
+    expect(sch.subjects.every((s) => !('papers' in s))).toBe(true);
     expect(shortHeading({ code: '0580' })).toBe('MAT');
   });
   it('rows in the given order with marks, grades, average and position; class averages skip X', () => {
     expect(sch.rows.map((r) => [r.n, r.student.id, r.position])).toEqual([[1, 'g1', 1], [2, 'g2', 2], [3, 'b1', 3]]);
-    expect(sch.rows[0].cells.mat).toEqual({ pct: 80, grade: 'A', papers: { p1: 82, p5: 78 } });
+    expect(sch.rows[0].cells.mat).toEqual({ pct: 80, grade: 'A' });
     expect(sch.averages).toEqual({ eng: 57.5, mat: 55 });
   });
 });
 
 describe('results analysis by subject by grade', () => {
-  const sch = buildSchedule(res, paperPct);
+  const sch = buildSchedule(res);
   const a = analyseClass(res, bands, sch);
   it('counts grades, C or better, failing and pass rate per subject', () => {
     expect(passMark(bands)).toBe(50);

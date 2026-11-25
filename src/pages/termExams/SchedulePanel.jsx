@@ -38,14 +38,7 @@ export default function SchedulePanel({ data }) {
     const paperById = Object.fromEntries(data.papers.map((p) => [p.id, p]));
     // Paper headings (Pure P1, Stats 2 (P6)…) for subjects with more than one paper
     const enriched = { ...res, subjects: res.subjects.map((s) => ({ ...s, papers: s.papers.map((p) => ({ ...p, label: paperById[p.id]?.paper ?? 'Paper' })) })) };
-    const paperPct = (sid, subj, p) => {
-      if ((data.sittings[sid]?.[p.id] ?? 'present') !== 'present') return null;
-      const g = groupFor(data.groups, sid, subj.id);
-      const raw = g ? data.marks[`${p.id}|${g.id}`]?.[sid]?.raw : null;
-      const max = paperMaxMark(paperById[p.id]);
-      return raw == null || !max ? null : (raw / max) * 100;
-    };
-    const schedule = buildSchedule(enriched, paperPct);
+    const schedule = buildSchedule(enriched); // final mark + grade per subject
     const analysis = analyseClass(enriched, bandsFor(win, className), schedule);
     // Every paper the class sits, per subject in school order, for the class marks template
     const columns = classMarkColumns(schedule.subjects.map((s) => ({
@@ -128,22 +121,20 @@ export default function SchedulePanel({ data }) {
   function exportExcel() {
     const head1 = ['#', 'NAME OF LEARNER'], head2 = ['', ''];
     schedule.subjects.forEach((s) => {
-      if (s.papers.length) { s.papers.forEach((p, i) => { head1.push(i ? '' : s.heading); head2.push(p.label); }); head1.push('', ''); head2.push('TOT', 'GRD'); }
-      else { head1.push(s.heading, ''); head2.push('%', 'GRD'); }
+      head1.push(s.heading, ''); head2.push('%', 'GRD');
     });
     head1.push('AVERAGE', 'POSITION'); head2.push('', '');
     const rows = schedule.rows.map((r) => {
       const out = [r.n, studentName(r.student)];
       schedule.subjects.forEach((s) => {
         const c = r.cells[s.id];
-        s.papers.forEach((p) => out.push(c ? r1(c.papers[p.id]) : ''));
         out.push(c ? r1(c.pct) : '', c?.grade ?? '');
       });
       out.push(r1(r.average), r.position ? `${r.position}/${r.outOf}` : '');
       return out;
     });
     const avg = ['', 'CLASS AVERAGE MARK PER SUBJECT'];
-    schedule.subjects.forEach((s) => { s.papers.forEach(() => avg.push('')); avg.push(r1(schedule.averages[s.id]), ''); });
+    schedule.subjects.forEach((s) => { avg.push(r1(schedule.averages[s.id]), ''); });
     const ana = [['SUBJECT', ...analysis.grades, 'NO. WITH C OR BETTER', 'NO. FAILING', '% PASS RATE'],
       ...analysis.subjects.map((s) => [s.name.toUpperCase(), ...analysis.grades.map((g) => s.counts[g]), s.pass, s.fail, s.passRate == null ? '' : r1(s.passRate)])];
     const wb = XLSX.utils.book_new();
@@ -152,8 +143,9 @@ export default function SchedulePanel({ data }) {
     XLSX.writeFile(wb, `${className} results schedule ${year}.xlsx`);
   }
 
-  const th = 'border border-slate-300 dark:border-slate-600 px-1.5 py-1 font-semibold';
-  const td = 'border border-slate-200 dark:border-slate-700 px-1.5 py-0.5 text-center';
+  // Clear lines and dark text (black on paper — see .data-table in index.css)
+  const th = 'border border-slate-500 dark:border-slate-400 bg-slate-100 dark:bg-slate-700 px-1.5 py-1 font-bold text-slate-900 dark:text-slate-50';
+  const td = 'border border-slate-400 dark:border-slate-500 px-1.5 py-1 text-center text-slate-900 dark:text-slate-100';
 
   return (
     <div className="space-y-4" data-print-landscape>
@@ -210,18 +202,16 @@ export default function SchedulePanel({ data }) {
           <p className="text-xs mt-1">CLASS: FORM <strong>{className}</strong> · NO. OF LEARNERS: <strong>{schedule.learners}</strong></p>
         </div>
         <div className="overflow-x-auto">
-          <table className="text-[11px] border-collapse min-w-full">
+          <table className="data-table text-[13px] border-collapse min-w-full">
             <thead>
               <tr>
                 <th rowSpan={2} className={th}>#</th>
                 <th rowSpan={2} className={`${th} text-left`}>NAME OF LEARNER</th>
-                {schedule.subjects.map((s) => <th key={s.id} colSpan={s.papers.length ? s.papers.length + 2 : 2} className={th} title={`${s.code} ${s.name}`}>{s.heading}</th>)}
+                {schedule.subjects.map((s) => <th key={s.id} colSpan={2} className={th} title={`${s.code} ${s.name}`}>{s.heading}</th>)}
                 <th rowSpan={2} className={th}>AVG</th><th rowSpan={2} className={th}>POS</th>
               </tr>
               <tr>
-                {schedule.subjects.flatMap((s) => (s.papers.length
-                  ? [...s.papers.map((p) => <th key={`${s.id}${p.id}`} className={`${th} font-normal`}>{p.label}</th>), <th key={`${s.id}t`} className={th}>TOT</th>, <th key={`${s.id}g`} className={th}>GRD</th>]
-                  : [<th key={`${s.id}m`} className={`${th} font-normal`}>%</th>, <th key={`${s.id}g`} className={th}>GRD</th>]))}
+                {schedule.subjects.flatMap((s) => [<th key={`${s.id}m`} className={`${th} font-normal`}>%</th>, <th key={`${s.id}g`} className={th}>GRD</th>])}
               </tr>
             </thead>
             <tbody>
@@ -232,7 +222,6 @@ export default function SchedulePanel({ data }) {
                   {schedule.subjects.flatMap((s) => {
                     const c = r.cells[s.id];
                     return [
-                      ...s.papers.map((p) => <td key={`${s.id}${p.id}`} className={td}>{c ? r1(c.papers[p.id]) : ''}</td>),
                       <td key={`${s.id}m`} className={td}>{c ? r1(c.pct) : ''}</td>,
                       <td key={`${s.id}g`} className={`${td} font-semibold`}>{c?.grade ?? ''}</td>,
                     ];
@@ -245,7 +234,6 @@ export default function SchedulePanel({ data }) {
                 <td className={td} />
                 <td className={`${td} text-left font-semibold whitespace-nowrap`}>CLASS AVERAGE MARK PER SUBJECT</td>
                 {schedule.subjects.flatMap((s) => [
-                  ...s.papers.map((p) => <td key={`${s.id}${p.id}`} className={td} />),
                   <td key={`${s.id}m`} className={`${td} font-semibold`}>{r1(schedule.averages[s.id])}</td>,
                   <td key={`${s.id}g`} className={`${td} bg-slate-300 dark:bg-slate-600`} />,
                 ])}
@@ -261,7 +249,7 @@ export default function SchedulePanel({ data }) {
       <section className={`${card} p-4 space-y-4 sched-break print:border-0 print:p-0`}>
         <p className="text-center font-bold underline">RESULTS ANALYSIS BY SUBJECT BY GRADES DISTRIBUTION — {className}</p>
         <div className="overflow-x-auto">
-          <table className="text-xs border-collapse min-w-full">
+          <table className="data-table text-[13px] border-collapse min-w-full">
             <thead>
               <tr>
                 <th rowSpan={2} className={`${th} text-left`}>SUBJECT</th>

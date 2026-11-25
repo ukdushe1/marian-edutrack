@@ -44,25 +44,20 @@ function stats(vals) {
 }
 
 /**
- * The mark schedule.
- * @param res          formResults() output for this class (students already in school order)
- * @param paperPct     (studentId, subject, paper) => % on that paper, or null
- * @returns { subjects: [{ id, heading, name, papers: [{ id, label }] }], rows, averages, learners }
+ * The mark schedule: each subject's final mark and grade only (no paper-by-paper marks).
+ * @param res formResults() output for this class (students already in school order)
+ * @returns { subjects: [{ id, code, heading, name }], rows, averages, learners }
  */
-export function buildSchedule(res, paperPct) {
+export function buildSchedule(res) {
   const subjects = [...res.subjects].sort((a, b) => subjectOrder(a) - subjectOrder(b) || String(a.code).localeCompare(String(b.code)))
-    .map((s) => ({ id: s.id, code: s.code, name: s.name, heading: shortHeading(s),
-      papers: s.papers.length > 1 ? s.papers.map((p) => ({ id: p.id, label: p.label ?? p.id })) : [] }));
+    .map((s) => ({ id: s.id, code: s.code, name: s.name, heading: shortHeading(s) }));
   const rows = res.students.map((st, i) => {
     const r = res.byStudent[st.id];
     const cells = {};
     for (const s of subjects) {
       const x = r.subjects[s.id];
       if (!x) continue;
-      cells[s.id] = {
-        pct: x.finalPct, grade: x.grade,
-        papers: Object.fromEntries(s.papers.map((p) => [p.id, paperPct(st.id, s, p)])),
-      };
+      cells[s.id] = { pct: x.finalPct, grade: x.grade };
     }
     return { n: i + 1, student: st, cells, average: r.overallAvg, position: r.overallPos, outOf: r.overallOutOf };
   });
