@@ -42,6 +42,9 @@
   main svg { max-width: 100% !important; height: auto !important; }
   main th, main td { word-break: normal; }
   tr, figure, .break-inside-avoid { break-inside: avoid; }
+  /* Results tables: solid black lines and text on paper */
+  .data-table, .data-table th, .data-table td { color: #000 !important; border-color: #000 !important; }
+  .data-table th { background: #e5e7eb !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .report-card { break-after: page; border: none !important; box-shadow: none !important; }
   body { background: #fff !important; }
 }

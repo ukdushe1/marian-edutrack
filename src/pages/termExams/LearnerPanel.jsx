@@ -65,18 +65,18 @@ export default function LearnerPanel({ data }) {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="text-sm min-w-full">
-              <thead><tr className="text-xs text-slate-500 text-left border-b border-slate-200 dark:border-slate-700">
+            <table className="data-table text-sm min-w-full border-collapse">
+              <thead><tr className="text-xs text-left bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-50 [&>th]:border [&>th]:border-slate-500 dark:[&>th]:border-slate-400 [&>th]:px-2 [&>th]:py-1.5">
                 <th className="py-1.5 pr-3">Subject</th><th className="pr-3 text-center">Mark</th><th className="pr-3 text-center">Grade</th>
                 <th className="pr-3 text-center">Class average</th><th className="pr-3 text-center">Difference</th><th className="text-center">Position</th>
               </tr></thead>
               <tbody>
                 {view.analysis.rows.map((r) => (
-                  <tr key={r.id} className="border-b border-slate-100 dark:border-slate-700/50">
+                  <tr key={r.id} className="text-slate-900 dark:text-slate-100 [&>td]:border [&>td]:border-slate-400 dark:[&>td]:border-slate-500 [&>td]:px-2 [&>td]:py-1">
                     <td className="py-1.5 pr-3">{r.name}</td>
                     <td className="pr-3 text-center font-semibold">{r.pct == null ? 'X' : `${r1(r.pct)}%`}</td>
                     <td className="pr-3 text-center font-semibold">{r.grade}</td>
-                    <td className="pr-3 text-center text-slate-500">{r.classAvg == null ? '—' : `${r1(r.classAvg)}%`}</td>
+                    <td className="pr-3 text-center">{r.classAvg == null ? '—' : `${r1(r.classAvg)}%`}</td>
                     <td className="pr-3 text-center">{r.diff == null ? '—' : `${r.diff > 0 ? '+' : ''}${r1(r.diff)}`}</td>
                     <td className="text-center">{r.position ? `${r.position}/${r.outOf}` : '—'}</td>
                   </tr>
